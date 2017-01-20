@@ -1,0 +1,481 @@
+# BLASTN 2.2.31+
+# Query: 1
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 2
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 2 hits found
+2	gi|1005487400|ref|XM_015924808.1|	76	61	80.26	8e-08	66.2	70779	PREDICTED: Acropora digitifera claspin-like (LOC107358179), mRNA
+2	gi|1005435371|ref|XM_015899713.1|	76	61	80.26	8e-08	66.2	70779	PREDICTED: Acropora digitifera claspin-like (LOC107334741), mRNA
+# BLASTN 2.2.31+
+# Query: 3
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 4
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 5
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 1 hits found
+5	gi|156382715|ref|XM_001632648.1|	45	40	88.89	4e-05	57.2	45351	Nematostella vectensis predicted protein (NEMVEDRAFT_v1g186309) partial mRNA
+# BLASTN 2.2.31+
+# Query: 6
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 7
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 29
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 2 hits found
+29	gi|1005471650|ref|XM_015917205.1|	62	53	85.48	2e-09	71.6	70779	PREDICTED: Acropora digitifera E3 ubiquitin-protein ligase UBR5-like (LOC107350943), mRNA
+29	gi|1005471650|ref|XM_015917205.1|	62	53	85.48	2e-09	71.6	70779	PREDICTED: Acropora digitifera E3 ubiquitin-protein ligase UBR5-like (LOC107350943), mRNA
+# BLASTN 2.2.31+
+# Query: 30
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 31
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 1 hits found
+31	gi|1005418695|ref|XM_015910268.1|	50	46	92.00	6e-10	73.4	70779	PREDICTED: Acropora digitifera neurofibromin-like (LOC107344562), mRNA
+# BLASTN 2.2.31+
+# Query: 32
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 33
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 34
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 35
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 36
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 37
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 38
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 39
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 50
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 1 hits found
+50	gi|1005484151|ref|XM_015923249.1|	91	82	90.11	4e-25	123	70779	PREDICTED: Acropora digitifera uncharacterized LOC107356640 (LOC107356640), mRNA
+# BLASTN 2.2.31+
+# Query: 51
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 52
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 2 hits found
+52	gi|1005447331|ref|XM_015905467.1|	59	54	91.53	3e-13	84.2	70779	PREDICTED: Acropora digitifera transient receptor potential cation channel subfamily V member 1-like (LOC107340115), mRNA
+52	gi|1005447333|ref|XM_015905468.1|	51	46	90.20	7e-09	69.8	70779	PREDICTED: Acropora digitifera transient receptor potential cation channel subfamily V member 3-like (LOC107340117), mRNA
+# BLASTN 2.2.31+
+# Query: 53
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 54
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 8 hits found
+54	gi|1005476869|ref|XR_001566579.1|	74	61	82.43	2e-08	68.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107353368 (LOC107353368), ncRNA
+54	gi|349573223|gb|JN600177.1|	81	63	77.78	1e-06	62.6	1076621	Seriatopora hystrix/Symbiodinium mixed library clone ShD_F25 mRNA sequence
+54	gi|1005488112|ref|XM_015925159.1|	85	65	76.47	4e-06	60.8	70779	PREDICTED: Acropora digitifera coagulation factor VIII-like (LOC107358553), mRNA
+54	gi|1005425499|ref|XM_015891803.1|	75	59	78.67	4e-06	60.8	70779	PREDICTED: Acropora digitifera orexin receptor type 2-like (LOC107327047), mRNA
+54	gi|1005461413|ref|XR_001564852.1|	42	38	90.48	1e-05	59.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107346510 (LOC107346510), ncRNA
+54	gi|1005451800|ref|XR_001563919.1|	42	38	90.48	1e-05	59.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107342102 (LOC107342102), ncRNA
+54	gi|1005447848|ref|XM_015905720.1|	75	58	77.33	4e-05	57.2	70779	PREDICTED: Acropora digitifera uncharacterized LOC107340367 (LOC107340367), mRNA
+54	gi|1005443061|ref|XM_015903387.1|	77	61	79.22	4e-05	57.2	70779	PREDICTED: Acropora digitifera 5-hydroxytryptamine receptor-like (LOC107338154), mRNA
+# BLASTN 2.2.31+
+# Query: 55
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 56
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 57
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 58
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 10 hits found
+58	gi|240863652|gb|CP001644.1|	91	90	98.90	5e-36	159	428406	Ralstonia pickettii 12D chromosome 1, complete sequence
+58	gi|187724002|gb|CP001068.1|	91	83	91.21	8e-27	129	402626	Ralstonia pickettii 12J chromosome 1, complete sequence
+58	gi|1033914789|gb|CP013480.2|	91	74	81.32	3e-14	87.8	93219	Pandoraea norimbergensis strain DSM 11628, complete genome
+58	gi|961565495|gb|CP013481.1|	91	73	80.22	3e-13	84.2	93218	Pandoraea apista strain DSM 16535, complete genome
+58	gi|827413822|gb|CP011501.1|	91	73	80.22	3e-13	84.2	93218	Pandoraea apista strain AU2161, complete genome
+58	gi|822481815|gb|CP011279.1|	91	73	80.22	3e-13	84.2	93218	Pandoraea apista strain TF80G25, complete genome
+58	gi|807145194|gb|CP010518.3|	91	73	80.22	3e-13	84.2	93218	Pandoraea apista strain TF81F4, complete genome
+58	gi|1033914176|gb|CP011807.2|	91	72	79.12	1e-11	78.8	656179	Pandoraea faecigallinarum strain DSM 23572, complete genome
+58	gi|1025018665|gb|CP015371.1|	91	72	79.12	1e-11	78.8	93220	Pandoraea pnomenusa strain MCB032, complete genome
+58	gi|1008420858|gb|CP007506.3|	91	72	79.12	1e-11	78.8	93220	Pandoraea pnomenusa strain RB38, complete genome
+# BLASTN 2.2.31+
+# Query: 59
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 60
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 61
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 62
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 63
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 64
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 65
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 66
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 67
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 68
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 1 hits found
+68	gi|688691147|emb|LL306204.1|	56	51	91.07	1e-11	78.8	27848	Echinostoma caproni genome assembly E_caproni_Egypt, scaffold ECPE_contig0027615
+# BLASTN 2.2.31+
+# Query: 69
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 70
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 71
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 72
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 73
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 74
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 75
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 76
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 2 hits found
+76	gi|1015462454|gb|CP013348.1|	91	75	82.42	6e-16	93.3	75105	Paraburkholderia caribensis strain Bcrs1W chromosome 2, complete sequence
+76	gi|184196655|gb|CP001045.1|	91	73	80.22	3e-13	84.2	391038	Burkholderia phymatum STM815 plasmid pBPHY01, complete sequence
+# BLASTN 2.2.31+
+# Query: 77
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 78
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 11 hits found
+78	gi|1005474393|ref|XM_015918499.1|	63	55	87.30	2e-10	75.2	70779	PREDICTED: Acropora digitifera uncharacterized LOC107352156 (LOC107352156), mRNA
+78	gi|1005482593|ref|XM_015922500.1|	56	48	85.71	8e-08	66.2	70779	PREDICTED: Acropora digitifera actin-binding LIM protein 2-like (LOC107355884), mRNA
+78	gi|1005482593|ref|XM_015922500.1|	51	43	84.31	4e-05	57.2	70779	PREDICTED: Acropora digitifera actin-binding LIM protein 2-like (LOC107355884), mRNA
+78	gi|1005454874|ref|XM_015909094.1|	41	39	95.12	8e-08	66.2	70779	PREDICTED: Acropora digitifera tolloid-like protein 1 (LOC107343515), transcript variant X1, mRNA
+78	gi|1005490004|ref|XM_015892229.1|	54	46	85.19	1e-06	62.6	70779	PREDICTED: Acropora digitifera otolin-1-like (LOC107327490), transcript variant X3, mRNA
+78	gi|1005490002|ref|XM_015892228.1|	54	46	85.19	1e-06	62.6	70779	PREDICTED: Acropora digitifera otolin-1-like (LOC107327490), transcript variant X2, mRNA
+78	gi|1005490000|ref|XM_015892227.1|	54	46	85.19	1e-06	62.6	70779	PREDICTED: Acropora digitifera otolin-1-like (LOC107327490), transcript variant X1, mRNA
+78	gi|1005472766|ref|XM_015917755.1|	49	43	87.76	1e-06	62.6	70779	PREDICTED: Acropora digitifera octopamine receptor 1-like (LOC107351456), mRNA
+78	gi|1005423161|ref|XM_015914799.1|	49	43	87.76	1e-06	62.6	70779	PREDICTED: Acropora digitifera two pore calcium channel protein 1-like (LOC107348732), mRNA
+78	gi|1005469549|ref|XR_001565735.1|	43	39	90.70	4e-06	60.8	70779	PREDICTED: Acropora digitifera uncharacterized LOC107349994 (LOC107349994), ncRNA
+78	gi|1005459721|ref|XM_015911446.1|	55	47	85.45	4e-06	60.8	70779	PREDICTED: Acropora digitifera uncharacterized LOC107345721 (LOC107345721), mRNA
+# BLASTN 2.2.31+
+# Query: 79
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 80
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 81
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 82
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 13 hits found
+82	gi|1021444297|gb|CP011258.1|	92	92	100.00	3e-38	167	105219	Ralstonia mannitolilytica strain SN83A39 chromosome 2, complete sequence
+82	gi|1021444297|gb|CP011258.1|	90	75	83.33	2e-16	95.1	105219	Ralstonia mannitolilytica strain SN83A39 chromosome 2, complete sequence
+82	gi|240868673|gb|CP001647.1|	92	92	100.00	3e-38	167	428406	Ralstonia pickettii 12D plasmid pRp12D02, complete sequence
+82	gi|240868673|gb|CP001647.1|	92	76	82.61	2e-16	95.1	428406	Ralstonia pickettii 12D plasmid pRp12D02, complete sequence
+82	gi|187724002|gb|CP001068.1|	92	92	100.00	3e-38	167	402626	Ralstonia pickettii 12J chromosome 1, complete sequence
+82	gi|187724002|gb|CP001068.1|	92	81	88.04	5e-23	116	402626	Ralstonia pickettii 12J chromosome 1, complete sequence
+82	gi|1004841773|gb|CP012944.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum strain IBSBF1503 plasmid, complete sequence
+82	gi|1004836999|gb|CP012940.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum strain UW163 plasmid, complete sequence
+82	gi|959677888|emb|LN899822.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum genome assembly 9 genomes, chromosome : IV
+82	gi|959672264|emb|LN899820.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum genome assembly 9 genomes, chromosome : II
+82	gi|959236254|emb|LN899827.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum genome assembly 9 genomes, chromosome : IX
+82	gi|959230911|emb|LN899826.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum genome assembly 9 genomes, chromosome : VIII
+82	gi|959225436|emb|LN899825.1|	92	87	94.57	4e-31	143	305	Ralstonia solanacearum genome assembly 9 genomes, chromosome : VII
+# BLASTN 2.2.31+
+# Query: 83
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 19 hits found
+83	gi|1005421532|ref|XR_001563769.1|	58	55	94.83	2e-15	91.5	70779	PREDICTED: Acropora digitifera uncharacterized LOC107341487 (LOC107341487), ncRNA
+83	gi|1005421523|ref|XR_001563750.1|	82	70	85.37	2e-15	91.5	70779	PREDICTED: Acropora digitifera uncharacterized LOC107341451 (LOC107341451), misc_RNA
+83	gi|1005421523|ref|XR_001563750.1|	49	42	85.71	4e-05	57.2	70779	PREDICTED: Acropora digitifera uncharacterized LOC107341451 (LOC107341451), misc_RNA
+83	gi|1005444674|ref|XM_015904191.1|	54	51	94.44	3e-13	84.2	70779	PREDICTED: Acropora digitifera BTB/POZ domain-containing protein 19-like (LOC107338941), mRNA
+83	gi|1005444674|ref|XM_015904191.1|	54	46	85.19	1e-06	62.6	70779	PREDICTED: Acropora digitifera BTB/POZ domain-containing protein 19-like (LOC107338941), mRNA
+83	gi|1005444674|ref|XM_015904191.1|	82	63	76.83	1e-06	62.6	70779	PREDICTED: Acropora digitifera BTB/POZ domain-containing protein 19-like (LOC107338941), mRNA
+83	gi|1005423198|ref|XM_015914987.1|	97	75	77.32	4e-12	80.6	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348896 (LOC107348896), mRNA
+83	gi|1005423198|ref|XM_015914987.1|	88	71	80.68	5e-11	77.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348896 (LOC107348896), mRNA
+83	gi|1005423198|ref|XM_015914987.1|	64	54	84.38	2e-08	68.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348896 (LOC107348896), mRNA
+83	gi|1005423190|ref|XM_015914950.1|	59	54	91.53	4e-12	80.6	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348872 (LOC107348872), transcript variant X2, mRNA
+83	gi|1005423190|ref|XM_015914950.1|	60	52	86.67	6e-10	73.4	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348872 (LOC107348872), transcript variant X2, mRNA
+83	gi|1005423188|ref|XM_015914939.1|	59	54	91.53	4e-12	80.6	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348872 (LOC107348872), transcript variant X1, mRNA
+83	gi|1005423188|ref|XM_015914939.1|	60	52	86.67	6e-10	73.4	70779	PREDICTED: Acropora digitifera uncharacterized LOC107348872 (LOC107348872), transcript variant X1, mRNA
+83	gi|1005446306|ref|XR_001563295.1|	79	65	82.28	5e-11	77.0	70779	PREDICTED: Acropora digitifera uncharacterized LOC107339653 (LOC107339653), ncRNA
+83	gi|1005446306|ref|XR_001563295.1|	66	54	81.82	8e-08	66.2	70779	PREDICTED: Acropora digitifera uncharacterized LOC107339653 (LOC107339653), ncRNA
+83	gi|1005446306|ref|XR_001563295.1|	56	47	83.93	4e-06	60.8	70779	PREDICTED: Acropora digitifera uncharacterized LOC107339653 (LOC107339653), ncRNA
+83	gi|1005483559|ref|XM_015922958.1|	56	50	89.29	2e-10	75.2	70779	PREDICTED: Acropora digitifera dynein heavy chain 6, axonemal-like (LOC107356343), mRNA
+83	gi|1005422757|ref|XM_015912870.1|	66	56	84.85	2e-10	75.2	70779	PREDICTED: Acropora digitifera cytoplasmic dynein 2 light intermediate chain 1-like (LOC107346998), mRNA
+83	gi|1005459218|ref|XM_015911238.1|	58	51	87.93	6e-10	73.4	70779	PREDICTED: Acropora digitifera F-box only protein 11-like (LOC107345520), mRNA
+# BLASTN 2.2.31+
+# Query: 84
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 85
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 86
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 87
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 88
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 89
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 90
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 1 hits found
+90	gi|1005482415|ref|XM_015922411.1|	34	33	97.06	4e-05	57.2	70779	PREDICTED: Acropora digitifera cilia- and flagella-associated protein 70-like (LOC107355816), partial mRNA
+# BLASTN 2.2.31+
+# Query: 91
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 92
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 93
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 94
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 95
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 96
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 97
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 98
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 99
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 2 hits found
+99	gi|1005429024|ref|XM_015896756.1|	93	83	89.25	4e-25	123	70779	PREDICTED: Acropora digitifera dimethylaniline monooxygenase [N-oxide-forming] 2-like (LOC107332036), transcript variant X2, mRNA
+99	gi|1005429022|ref|XM_015896755.1|	93	83	89.25	4e-25	123	70779	PREDICTED: Acropora digitifera dimethylaniline monooxygenase [N-oxide-forming] 2-like (LOC107332036), transcript variant X1, mRNA
+# BLASTN 2.2.31+
+# Query: 100
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 101
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 102
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 103
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 104
+# RID: TX8PEDPE014
+# Database: nt
+# Fields: query id, subject id, alignment length, identical, % identity, evalue, bit score, subject tax ids, subject title
+# 4 hits found
+104	gi|1005442717|ref|XM_015903214.1|	60	51	85.00	3e-07	64.4	70779	PREDICTED: Acropora digitifera nitric oxide synthase, brain-like (LOC107337967), mRNA
+104	gi|1005419919|ref|XM_015899284.1|	68	55	80.88	4e-06	60.8	70779	PREDICTED: Acropora digitifera cartilage oligomeric matrix protein-like (LOC107334355), mRNA
+104	gi|1005419919|ref|XM_015899284.1|	57	48	84.21	1e-05	59.0	70779	PREDICTED: Acropora digitifera cartilage oligomeric matrix protein-like (LOC107334355), mRNA
+104	gi|1005486992|ref|XR_001567733.1|	60	50	83.33	4e-05	57.2	70779	PREDICTED: Acropora digitifera uncharacterized LOC107357965 (LOC107357965), ncRNA
+# BLASTN 2.2.31+
+# Query: 105
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 106
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 107
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found
+# BLASTN 2.2.31+
+# Query: 108
+# RID: TX8PEDPE014
+# Database: nt
+# 0 hits found

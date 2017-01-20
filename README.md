@@ -7,13 +7,8 @@ This page is generated using the listed [README_compile.py](README_compile.py) s
 
 |script|description (truncated)|
 |---|---|
-|**pyrad**| |
-pyrad2concat_fasta.py|Concatenates PyRAD/ipyrad sequences from...|
-pyrad2fasta.py|Create FASTA file with a representative ...|
-pyrad2migrate.py|Converts PyRAD `.allele` file to migrate...|
-pyrad_filter.py|Filters PyRAD output file (`.loci`) for ...|
-pyrad_trim.py|Trims sequence length in PyRAD/ipyrad `....|
-pyradclust2fasta.py|Creates one large FASTA from all PyRAD c...|
+|**structure**| |
+structure_mp.py|Multi-processing STRUCTURE (Pritchard et...|
 |**vcf**| |
 vcf2hapmatrix.py|Converts `.vcf` file to Tag Haplotype Ma...|
 vcf2introgress.py|Converts `.vcf` file to INTROGRESS input...|
@@ -36,129 +31,55 @@ vcf_rename_samples.py|Renames sample in `.vcf` file according ...|
 vcf_single_snp.py|Reduces `.vcf` file to a single 'random'...|
 vcf_spider.py|Wrapper for PGDspider on Mac OS to conve...|
 vcf_splitfst.py|Filter original SNP dataset (`.vcf`) for...|
-|**other**| |
-fasta_include.py|Reduces FASTA file to only those loci li...|
-popfile_from_clusters.py|Outputs a popfile based on cluster assig...|
-popfile_randomize.py|Pseudo-randomize the assignment of indiv...|
-popfile_toggleassign.py|Shuffle the assignment of individuals to...|
-README_compile.py|Compiles README markdown file for this r...|
-structure_mp.py|Multi-processing STRUCTURE (Pritchard et...|
-|**mapping**| |
-mapping_get_blastn_matches.py|Extracts a list of loci that have a blas...|
-mapping_get_bwa_matches.py|Extracts a list of succesfully mapped lo...|
-mapping_identify_blast_matches.py|Extracts a list of loci that have a blas...|
 |**fastq**| |
 fastq_barcodes2samplenames.py|Renames barcoded .fastq.gz files in a fo...|
 fastq_bin_paired_reads.py|Clusters reads of paired-end RAD-seq dat...|
 fastq_seqcount.py|Outputs number of reads for each fastq.g...|
+|**mapping**| |
+mapping_get_blastn_matches.py|Extracts a list of loci that have a blas...|
+mapping_get_bwa_matches.py|Extracts a list of succesfully mapped lo...|
+mapping_identify_blast_matches.py|Extracts a list of loci that have a blas...|
+|**popfile**| |
+popfile_from_clusters.py|Outputs a popfile based on cluster assig...|
+popfile_randomize.py|Pseudo-randomize the assignment of indiv...|
+popfile_toggleassign.py|Shuffle the assignment of individuals to...|
+|**other**| |
+fasta_include.py|Reduces FASTA file to only those loci li...|
+README_compile.py|Compiles README markdown file for this r...|
+|**pyrad**| |
+pyrad2concat_fasta.py|Concatenates PyRAD/ipyrad sequences from...|
+pyrad2fasta.py|Create FASTA file with a representative ...|
+pyrad2migrate.py|Converts PyRAD `.allele` file to migrate...|
+pyrad_filter.py|Filters PyRAD output file (`.loci`) for ...|
+pyrad_trim.py|Trims sequence length in PyRAD/ipyrad `....|
+pyradclust2fasta.py|Creates one large FASTA from all PyRAD c...|
 
-## pyrad
+## structure
 
-**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
-outputs as FASTA (order by popfile). Note: missing data are filled with gaps
-(`N`)
+**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
+Takes a `.vcf` as input file and then creates a number of replicate datasets,
+each with a different pseudo-random subsampling of one SNP per RAD contig.
+Then, it runs the replicate datasets through STRUCTURE across multiple
+threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
+2007). Finally, it assesses the number of potential clusters using the
+Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
+NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
+CHROM, and different params files need to be present in current path.
 
-	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
+	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
 
 	positional arguments:
-	  pyrad_file  PyRAD file (`.loci`)
-	  pop_file    text file (tsv or csv) with individuals and populations
+	  vcf_file    input file with SNP data (`.vcf`)
+	  pop_file    population file (.txt)
+	  maxK        maximum number of K (expected clusters)
+	  replicates  number of replicate runs for each K
+	  threads     number of parallel threads
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
 	
 
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
-locus in pyRAD/ipyrad `.loci` or `.allele` file.
-
-	usage: pyrad2fasta.py [-h] pyrad_file
-
-	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
-
-
-**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
-indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
-file (not `.loci`).
-
-	usage: pyrad2migrate.py [-h] allele_file pop_file
-
-	positional arguments:
-	  allele_file  PyRAD allele file (.allele)
-	  pop_file     text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help   show this help message and exit
-	
-
-Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyrad_filter.py](pyrad_filter.py)** - Filters PyRAD output file (`.loci`) for those loci (1) present or absent
-(using --exclude flag) in supplied list, (2) genotyped for at least X number
-of samples, and (3) with at least Y number of informative sites. Note: can
-also be used for `.alleles` file but then 2x the number of samples should be
-given (assuming diploid individual).
-
-	usage: pyrad_filter.py [-h] [-e]
-                       pyrad_file loci_file sample_threshold snp_threshold
-
-	positional arguments:
-	  pyrad_file        PyRAD file (`.loci`)
-	  loci_file         text file with PyRAD loci to be included
-	  sample_threshold  min. number of samples genotyped for a locus to be
-	                    included
-	  snp_threshold     min. number of SNPs for a locus to be included
-	
-	optional arguments:
-	  -h, --help        show this help message and exit
-	  -e, --exclude     use the loci in loci_file as exclusion list
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
-
-
-**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file.
-
-	usage: pyrad_trim.py [-h] pyrad_file seq_length
-
-	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
-	  seq_length  length to which sequences are trimmed
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
-
-
-**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
-clusters that exceed size threshold (min. number of sequences in cluster).
-First sequence of each cluster is outputted (together with size of overall
-cluster - note: not of that specific sequence).
-
-	usage: pyradclust2fasta.py [-h] path threshold output_filename
-
-	positional arguments:
-	  path             path that contains PyRAD `.clustS` files
-	  threshold        minimum size of cluster to be included
-	  output_filename  name of output FASTA file
-	
-	optional arguments:
-	  -h, --help       show this help message and exit
-	
-
-
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 
 
@@ -574,116 +495,70 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [fst_file.t
 
 
 
-## other
+## fastq
 
-**[fasta_include.py](fasta_include.py)** - Reduces FASTA file to only those loci listed in supplied text file.
+**[fastq_barcodes2samplenames.py](fastq_barcodes2samplenames.py)** - Renames barcoded .fastq.gz files in a folder to sample/individual names. Takes
+relative or absolute path as first argument (e.g. 'samples'; without trailing
+slash) and a text file as second argument. The latter should be a tab-
+separated text file, with the barcode in the first column, and the new
+sample/individual name in the second column. The script conducts a trial run
+first, listing the files to be renamed, and then asks for confirmation before
+doing the actual renaming.
 
-	usage: fasta_include.py [-h] fasta_file inclusion_file
+	usage: fastq_barcodes2samplenames.py [-h] path barcode_file
 
 	positional arguments:
-	  fasta_file      FASTA input file (`.fasta`/ `.fa`)
-	  inclusion_file  text file with names of loci to be included
+	  path          path (for current directory use `.`)
+	  barcode_file  text file (tsv or csv) with barcodes and sample names
+	
+	optional arguments:
+	  -h, --help    show this help message and exit
+	
+
+
+
+
+**[fastq_bin_paired_reads.py](fastq_bin_paired_reads.py)** - Clusters reads of paired-end RAD-seq data for downstream contig assembly. It
+maps R1 reads to a reference, and then outputs those reads and the
+corresponding R2 reads to a separate 'shuffled' FASTQ file per locus. Note:
+when using an existing output folder, reads are being appended to existing
+files (use this to append data from multiple samples). BWA needs to be
+installed and accessible through `PATH` environmental variable.
+
+	usage: fastq_bin_paired_reads.py [-h]
+                                 r1_fastq_file r2_fastq_file ref_fasta_file
+                                 threads output_folder
+
+	positional arguments:
+	  r1_fastq_file   file in FASTQ format with R1 reads
+	  r2_fastq_file   file in FASTQ format with R2 reads
+	  ref_fasta_file  file in FASTA format with reference contigs
+	  threads         number of threads to be used by BWA
+	  output_folder   name of output folder
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
 	
 
-Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [inclusion_file.txt](input_examples/inclusion_file.txt).
 
 
-**[popfile_from_clusters.py](popfile_from_clusters.py)** - Outputs a popfile based on cluster assignment file (from e.g. STRUCTURE) and
-outputs a popfile based on those assigments (using supplied assignment
-threshold). Note: I use the formatted CLUMPP output (e.g. `clumpp_K4.out.csv`)
-from the `structure_mp` wrapper as assignment file.
 
-	usage: popfile_from_clusters.py [-h] assignment_file assign_cut_off
+**[fastq_seqcount.py](fastq_seqcount.py)** - Outputs number of reads for each fastq.gz sample to text file, and prints
+mean/min/max to STDOUT. Note: Does not work with all FASTQ formats, and
+correct depending on OS `zcat` or `gzcat` needs to be set in COMPRESS_UTIL
+constant.
+
+	usage: fastq_seqcount.py [-h] path output_filename
 
 	positional arguments:
-	  assignment_file  text file (tsv or csv) with assignment values for each
-	                   individual (max. 2 clusters); e.g. a reformatted STRUCTURE
-	                   output file
-	  assign_cut_off   min. assignment value for an individual to be assigned to a
-	                   cluster
+	  path             path (for current directory use `.`)
+	  output_filename  name of text output file
 	
 	optional arguments:
 	  -h, --help       show this help message and exit
 	
 
-Example input file(s):  [assignment_file.csv](input_examples/assignment_file.csv).
 
-
-**[popfile_randomize.py](popfile_randomize.py)** - Pseudo-randomize the assignment of individuals to populations. Note: with
-small population sizes, this can lead to very uneven simulated population
-sizes. See also the alternative: `popfile_toggleassign.py`. Individuals in
-original popfile should be ordered by population.
-
-	usage: popfile_randomize.py [-h] pop_file
-
-	positional arguments:
-	  pop_file    text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[popfile_toggleassign.py](popfile_toggleassign.py)** - Shuffle the assignment of individuals to populations by assigning the indivs
-sequentially to the different pops. The assignment is not completely random,
-but does generate equal population sizes (which otherwise differ substantially
-when using random assignment under originally small population sizes).
-
-	usage: popfile_toggleassign.py [-h] pop_file
-
-	positional arguments:
-	  pop_file    text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
-(https://github.com/pimbongaerts/radseq). Categories are assigned based on
-prefix, usage information is extracted from argparse, and example input files
-are assigned based on argument names.
-
-	usage: README_compile.py [-h]
-
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-
-
-
-**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
-Takes a `.vcf` as input file and then creates a number of replicate datasets,
-each with a different pseudo-random subsampling of one SNP per RAD contig.
-Then, it runs the replicate datasets through STRUCTURE across multiple
-threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
-2007). Finally, it assesses the number of potential clusters using the
-Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
-NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
-CHROM, and different params files need to be present in current path.
-
-	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
-
-	positional arguments:
-	  vcf_file    input file with SNP data (`.vcf`)
-	  pop_file    population file (.txt)
-	  maxK        maximum number of K (expected clusters)
-	  replicates  number of replicate runs for each K
-	  threads     number of parallel threads
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 
 
@@ -759,64 +634,197 @@ Example input file(s):  [blastn_file.txt](input_examples/blastn_file.txt).
 
 
 
-## fastq
+## popfile
 
-**[fastq_barcodes2samplenames.py](fastq_barcodes2samplenames.py)** - Renames barcoded .fastq.gz files in a folder to sample/individual names. Takes
-relative or absolute path as first argument (e.g. 'samples'; without trailing
-slash) and a text file as second argument. The latter should be a tab-
-separated text file, with the barcode in the first column, and the new
-sample/individual name in the second column. The script conducts a trial run
-first, listing the files to be renamed, and then asks for confirmation before
-doing the actual renaming.
+**[popfile_from_clusters.py](popfile_from_clusters.py)** - Outputs a popfile based on cluster assignment file (from e.g. STRUCTURE) and
+outputs a popfile based on those assigments (using supplied assignment
+threshold). Note: I use the formatted CLUMPP output (e.g. `clumpp_K4.out.csv`)
+from the `structure_mp` wrapper as assignment file.
 
-	usage: fastq_barcodes2samplenames.py [-h] path barcode_file
+	usage: popfile_from_clusters.py [-h] assignment_file assign_cut_off
 
 	positional arguments:
-	  path          path (for current directory use `.`)
-	  barcode_file  text file (tsv or csv) with barcodes and sample names
+	  assignment_file  text file (tsv or csv) with assignment values for each
+	                   individual (max. 2 clusters); e.g. a reformatted STRUCTURE
+	                   output file
+	  assign_cut_off   min. assignment value for an individual to be assigned to a
+	                   cluster
 	
 	optional arguments:
-	  -h, --help    show this help message and exit
+	  -h, --help       show this help message and exit
 	
 
+Example input file(s):  [assignment_file.csv](input_examples/assignment_file.csv).
 
 
+**[popfile_randomize.py](popfile_randomize.py)** - Pseudo-randomize the assignment of individuals to populations. Note: with
+small population sizes, this can lead to very uneven simulated population
+sizes. See also the alternative: `popfile_toggleassign.py`. Individuals in
+original popfile should be ordered by population.
 
-**[fastq_bin_paired_reads.py](fastq_bin_paired_reads.py)** - Clusters reads of paired-end RAD-seq data for downstream contig assembly. It
-maps R1 reads to a reference, and then outputs those reads and the
-corresponding R2 reads to a separate 'shuffled' FASTQ file per locus. Note:
-when using an existing output folder, reads are being appended to existing
-files (use this to append data from multiple samples). BWA needs to be
-installed and accessible through `PATH` environmental variable.
-
-	usage: fastq_bin_paired_reads.py [-h]
-                                 r1_fastq_file r2_fastq_file ref_fasta_file
-                                 threads output_folder
+	usage: popfile_randomize.py [-h] pop_file
 
 	positional arguments:
-	  r1_fastq_file   file in FASTQ format with R1 reads
-	  r2_fastq_file   file in FASTQ format with R2 reads
-	  ref_fasta_file  file in FASTA format with reference contigs
-	  threads         number of threads to be used by BWA
-	  output_folder   name of output folder
+	  pop_file    text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[popfile_toggleassign.py](popfile_toggleassign.py)** - Shuffle the assignment of individuals to populations by assigning the indivs
+sequentially to the different pops. The assignment is not completely random,
+but does generate equal population sizes (which otherwise differ substantially
+when using random assignment under originally small population sizes).
+
+	usage: popfile_toggleassign.py [-h] pop_file
+
+	positional arguments:
+	  pop_file    text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
+
+
+
+## other
+
+**[fasta_include.py](fasta_include.py)** - Reduces FASTA file to only those loci listed in supplied text file.
+
+	usage: fasta_include.py [-h] fasta_file inclusion_file
+
+	positional arguments:
+	  fasta_file      FASTA input file (`.fasta`/ `.fa`)
+	  inclusion_file  text file with names of loci to be included
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
 	
 
+Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [inclusion_file.txt](input_examples/inclusion_file.txt).
+
+
+**[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
+(https://github.com/pimbongaerts/radseq). Categories are assigned based on
+prefix, usage information is extracted from argparse, and example input files
+are assigned based on argument names.
+
+	usage: README_compile.py [-h]
+
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
 
 
 
-**[fastq_seqcount.py](fastq_seqcount.py)** - Outputs number of reads for each fastq.gz sample to text file, and prints
-mean/min/max to STDOUT. Note: Does not work with all FASTQ formats, and
-correct depending on OS `zcat` or `gzcat` needs to be set in COMPRESS_UTIL
-constant.
 
-	usage: fastq_seqcount.py [-h] path output_filename
+
+## pyrad
+
+**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
+outputs as FASTA (order by popfile). Note: missing data are filled with gaps
+(`N`)
+
+	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
 
 	positional arguments:
-	  path             path (for current directory use `.`)
-	  output_filename  name of text output file
+	  pyrad_file  PyRAD file (`.loci`)
+	  pop_file    text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
+locus in pyRAD/ipyrad `.loci` or `.allele` file.
+
+	usage: pyrad2fasta.py [-h] pyrad_file
+
+	positional arguments:
+	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
+
+
+**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
+indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
+file (not `.loci`).
+
+	usage: pyrad2migrate.py [-h] allele_file pop_file
+
+	positional arguments:
+	  allele_file  PyRAD allele file (.allele)
+	  pop_file     text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help   show this help message and exit
+	
+
+Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[pyrad_filter.py](pyrad_filter.py)** - Filters PyRAD output file (`.loci`) for those loci (1) present or absent
+(using --exclude flag) in supplied list, (2) genotyped for at least X number
+of samples, and (3) with at least Y number of informative sites. Note: can
+also be used for `.alleles` file but then 2x the number of samples should be
+given (assuming diploid individual).
+
+	usage: pyrad_filter.py [-h] [-e]
+                       pyrad_file loci_file sample_threshold snp_threshold
+
+	positional arguments:
+	  pyrad_file        PyRAD file (`.loci`)
+	  loci_file         text file with PyRAD loci to be included
+	  sample_threshold  min. number of samples genotyped for a locus to be
+	                    included
+	  snp_threshold     min. number of SNPs for a locus to be included
+	
+	optional arguments:
+	  -h, --help        show this help message and exit
+	  -e, --exclude     use the loci in loci_file as exclusion list
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
+
+
+**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file.
+
+	usage: pyrad_trim.py [-h] pyrad_file seq_length
+
+	positional arguments:
+	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	  seq_length  length to which sequences are trimmed
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
+
+
+**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
+clusters that exceed size threshold (min. number of sequences in cluster).
+First sequence of each cluster is outputted (together with size of overall
+cluster - note: not of that specific sequence).
+
+	usage: pyradclust2fasta.py [-h] path threshold output_filename
+
+	positional arguments:
+	  path             path that contains PyRAD `.clustS` files
+	  threshold        minimum size of cluster to be included
+	  output_filename  name of output FASTA file
 	
 	optional arguments:
 	  -h, --help       show this help message and exit

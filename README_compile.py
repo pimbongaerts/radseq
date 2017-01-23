@@ -124,14 +124,14 @@ def main():
             script_metadata[filename] = metadata
 
     # Output script summary by group:
-    print('\n|script|description (truncated)|\n|---|---|')
-    for group in grouped_scripts:
-        # Output name of each group
-        print('|**{0}**| |'.format(group))
-        # Output hyperlinks to each script in group
-        for script in grouped_scripts[group]:
-            print('{0}|'.format(script), end='')
-            print('{0}...|'.format(script_metadata[script]['title'][0:40]))
+    #print('\n|script|description (truncated)|\n|---|---|')
+    #for group in grouped_scripts:
+    #    # Output name of each group
+    #    print('|**{0}**| |'.format(group))
+    #    # Output hyperlinks to each script in group
+    #    for script in grouped_scripts[group]:
+    #        print('{0}|'.format(script), end='')
+    #        print('{0}...|'.format(script_metadata[script]['title'][0:40]))
 
     # Output script metadata by group:
     for group in grouped_scripts:

@@ -3,7 +3,8 @@
 Creates one large FASTA from all PyRAD clustS files in directory. Only
 outputs clusters that exceed size threshold (min. number of sequences in
 cluster). First sequence of each cluster is outputted (together with size
-of overall cluster - note: not of that specific sequence).
+of overall cluster - note: not of that specific sequence). Prints the outputted
+and total number of clusters to STDOUT.
 """
 import sys
 import os
@@ -75,11 +76,11 @@ def main(path, threshold, output_filename):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('path',
+    parser.add_argument('path', metavar='path',
                         help='path that contains PyRAD `.clustS` files')
-    parser.add_argument('threshold', type=int,
+    parser.add_argument('threshold', type=int, metavar='cluster_threshold',
                         help='minimum size of cluster to be included')
-    parser.add_argument('output_filename',
+    parser.add_argument('output_filename', metavar='output_file',
                         help='name of output FASTA file')
     args = parser.parse_args()
     main(args.path, args.threshold, args.output_filename)

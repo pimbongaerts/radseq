@@ -19,7 +19,8 @@ __license__ = 'GPL'
 HEADER_FILE = 'README_header.md'
 PATH = '.'
 DOCSTRING = '"""'
-GROUP_TAGS = ['pyrad', 'vcf', 'fastq', 'mapping', 'popfile', 'structure']
+GROUP_TAGS = ['pyrad', 'vcf', 'structure', 'fastq', 'mapping', 'popfile',
+              'other']
 GROUP_OTHER = 'other'
 EXAMPLES_FOLDER = 'input_examples/'
 EXAMPLES_DESCR = 'Example input file(s): '
@@ -55,7 +56,7 @@ def extract_metadata_from_script(filename):
     metadata['arguments'] = help_metadata[2:]
     # Extract group from filename
     for group_tag in GROUP_TAGS:
-        if group_tag in filename:
+        if '{0}_'.format(group_tag) in filename:
             metadata['group'] = group_tag
             break
         metadata['group'] = GROUP_OTHER
@@ -124,8 +125,8 @@ def main():
             script_metadata[filename] = metadata
 
     # Output script summary by group:
-    #print('\n|script|description (truncated)|\n|---|---|')
-    #for group in grouped_scripts:
+    # print('\n|script|description (truncated)|\n|---|---|')
+    # for group in grouped_scripts:
     #    # Output name of each group
     #    print('|**{0}**| |'.format(group))
     #    # Output hyperlinks to each script in group
@@ -134,7 +135,7 @@ def main():
     #        print('{0}...|'.format(script_metadata[script]['title'][0:40]))
 
     # Output script metadata by group:
-    for group in grouped_scripts:
+    for group in GROUP_TAGS:
         # Output header for group
         print('\n## {0}\n'.format(group))
 

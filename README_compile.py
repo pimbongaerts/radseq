@@ -56,7 +56,7 @@ def extract_metadata_from_script(filename):
     metadata['arguments'] = help_metadata[2:]
     # Extract group from filename
     for group_tag in GROUP_TAGS:
-        if '{0}_'.format(group_tag) in filename:
+        if group_tag in filename:
             metadata['group'] = group_tag
             break
         metadata['group'] = GROUP_OTHER

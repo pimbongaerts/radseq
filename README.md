@@ -7,6 +7,55 @@ This documentation is dynamically generated using the listed [README_compile.py]
 
 ## pyrad
 
+**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
+outputs as FASTA (order by popfile). Note: missing data are filled with gaps
+(`N`)
+
+	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
+
+	positional arguments:
+	  pyrad_file  PyRAD file (`.loci`)
+	  pop_file    text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
+locus in pyRAD/ipyrad `.loci` or `.allele` file.
+
+	usage: pyrad2fasta.py [-h] pyrad_file
+
+	positional arguments:
+	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
+
+
+**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
+indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
+file (not `.loci`).
+
+	usage: pyrad2migrate.py [-h] allele_file pop_file
+
+	positional arguments:
+	  allele_file  PyRAD allele file (.allele)
+	  pop_file     text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help   show this help message and exit
+	
+
+Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
+
+
 **[pyrad_filter.py](pyrad_filter.py)** - Filters PyRAD output file (`.loci`) for those loci (1) present or absent
 (using --exclude flag) in supplied list, (2) genotyped for at least X number
 of samples, and (3) with at least Y number of informative sites. Note: can
@@ -46,8 +95,117 @@ Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
 
 
+**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
+clusters that exceed size threshold (min. number of sequences in cluster).
+First sequence of each cluster is outputted (together with size of overall
+cluster - note: not of that specific sequence). Prints the outputted and total
+number of clusters to STDOUT.
+
+	usage: pyradclust2fasta.py [-h] path cluster_threshold output_file
+
+	positional arguments:
+	  path               path that contains PyRAD `.clustS` files
+	  cluster_threshold  minimum size of cluster to be included
+	  output_file        name of output FASTA file
+	
+	optional arguments:
+	  -h, --help         show this help message and exit
+	
+
+
+
+
 
 ## vcf
+
+**[popfile_from_vcf.py](popfile_from_vcf.py)** - Creates tab-separated popfile from `.vcf`, using a subset of the sample name
+as population. For example, to use the substring `MGD` from `AFMGD6804H` as
+population designation, run script as `python3 popfile_from_vcf vcf_file 3 5`.
+
+	usage: popfile_from_vcf.py [-h] vcf_file start_pos end_pos
+
+	positional arguments:
+	  vcf_file    input file with SNP data (`.vcf`)
+	  start_pos   character start position in sample name to be used for
+	              population name (one-based)
+	  end_pos     character end position in sample name to be used for population
+	              name (one-based)
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
+
+
+**[vcf2hapmatrix.py](vcf2hapmatrix.py)** - Converts `.vcf` file to Tag Haplotype Matrix (with Chrom), with order of
+individuals as indicated in optional file. Note: not yet properly tested. SNPs
+of same CHROM (first column) in `.vcf` should be grouped
+together/sequentially, and all individuals need to be listed in order_file.
+
+	usage: vcf2hapmatrix.py [-h] [-o order_file] vcf_file
+
+	positional arguments:
+	  vcf_file              input file with SNP data (`.vcf`)
+	
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -o order_file, --order_file order_file
+	                        text file with preferred output order of individuals
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
+
+
+**[vcf2introgress.py](vcf2introgress.py)** - Converts `.vcf` file to INTROGRESS input files (4 files). Splits data into
+three categories: parental1, parental2 and admixed based on cluster assignment
+(provided in separate file; e.g. STRUCTURE output) and given threshold, and
+outputs data for loc that exceed a certain frequency difference between the
+two 'parental' categories. Note: not yet properly tested. also see similar
+`vcf_ancestry_matrix.py` script. I use the formatted CLUMPP output
+(`clumpp_K2.out.csv`) from the `structure_mp` wrapper as assignment file (max.
+of 2 clusters).
+
+	usage: vcf2introgress.py [-h] [--include]
+                         vcf_file assignment_file assign_cut_off freq_cut_off
+                         output_prefix
+
+	positional arguments:
+	  vcf_file         input file with SNP data (`.vcf`)
+	  assignment_file  text file (tsv or csv) with assignment values for each
+	                   individual (max. 2 clusters); e.g. a reformatted STRUCTURE
+	                   output file
+	  assign_cut_off   min. assignment value for an individual to be included in
+	                   the allele frequency calculation (i.e. putative purebred)
+	  freq_cut_off     min. allele frequency difference between the 2 clusters for
+	                   a locus to be included in the output
+	  output_prefix    prefix for output files
+	
+	optional arguments:
+	  -h, --help       show this help message and exit
+	  --include, -i    set this flag if parental pops need to be included in
+	                   output
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
+
+
+**[vcf2outflank.py](vcf2outflank.py)** - Converts `.vcf` file to OutFLANK input files (3 different files). Note: not
+yet properly tested.
+
+	usage: vcf2outflank.py [-h] vcf_file pop_file output_prefix
+
+	positional arguments:
+	  vcf_file       input file with SNP data (`.vcf`)
+	  pop_file       text file (tsv or csv) with individuals and populations
+	  output_prefix  prefix for output files
+	
+	optional arguments:
+	  -h, --help     show this help message and exit
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
+
 
 **[vcf_ancestry_matrix.py](vcf_ancestry_matrix.py)** - Creates a genotype matrix for loci that have a large allele frequency
 difference between two genetic clusters (as identified with e.g. STRUCTURE).
@@ -581,26 +739,6 @@ from the `structure_mp` wrapper as assignment file.
 Example input file(s):  [assignment_file.csv](input_examples/assignment_file.csv).
 
 
-**[popfile_from_vcf.py](popfile_from_vcf.py)** - Creates tab-separated popfile from `.vcf`, using a subset of the sample name
-as population. For example, to use the substring `MGD` from `AFMGD6804H` as
-population designation, run script as `python3 popfile_from_vcf vcf_file 3 5`.
-
-	usage: popfile_from_vcf.py [-h] vcf_file start_pos end_pos
-
-	positional arguments:
-	  vcf_file    input file with SNP data (`.vcf`)
-	  start_pos   character start position in sample name to be used for
-	              population name (one-based)
-	  end_pos     character end position in sample name to be used for population
-	              name (one-based)
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
-
-
 **[popfile_randomize.py](popfile_randomize.py)** - Pseudo-randomize the assignment of individuals to populations. Note: with
 small population sizes, this can lead to very uneven simulated population
 sizes. See also the alternative: `popfile_toggleassign.py`. Individuals in
@@ -653,75 +791,6 @@ Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [inclusion_file.txt](input_examples/inclusion_file.txt).
 
 
-**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
-outputs as FASTA (order by popfile). Note: missing data are filled with gaps
-(`N`)
-
-	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
-
-	positional arguments:
-	  pyrad_file  PyRAD file (`.loci`)
-	  pop_file    text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
-locus in pyRAD/ipyrad `.loci` or `.allele` file.
-
-	usage: pyrad2fasta.py [-h] pyrad_file
-
-	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
-
-
-**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
-indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
-file (not `.loci`).
-
-	usage: pyrad2migrate.py [-h] allele_file pop_file
-
-	positional arguments:
-	  allele_file  PyRAD allele file (.allele)
-	  pop_file     text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help   show this help message and exit
-	
-
-Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
-clusters that exceed size threshold (min. number of sequences in cluster).
-First sequence of each cluster is outputted (together with size of overall
-cluster - note: not of that specific sequence). Prints the outputted and total
-number of clusters to STDOUT.
-
-	usage: pyradclust2fasta.py [-h] path cluster_threshold output_file
-
-	positional arguments:
-	  path               path that contains PyRAD `.clustS` files
-	  cluster_threshold  minimum size of cluster to be included
-	  output_file        name of output FASTA file
-	
-	optional arguments:
-	  -h, --help         show this help message and exit
-	
-
-
-
-
 **[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
 (https://github.com/pimbongaerts/radseq). Categories are assigned based on
 prefix, usage information is extracted from argparse, and example input files
@@ -734,74 +803,5 @@ are assigned based on argument names.
 	
 
 
-
-
-**[vcf2hapmatrix.py](vcf2hapmatrix.py)** - Converts `.vcf` file to Tag Haplotype Matrix (with Chrom), with order of
-individuals as indicated in optional file. Note: not yet properly tested. SNPs
-of same CHROM (first column) in `.vcf` should be grouped
-together/sequentially, and all individuals need to be listed in order_file.
-
-	usage: vcf2hapmatrix.py [-h] [-o order_file] vcf_file
-
-	positional arguments:
-	  vcf_file              input file with SNP data (`.vcf`)
-	
-	optional arguments:
-	  -h, --help            show this help message and exit
-	  -o order_file, --order_file order_file
-	                        text file with preferred output order of individuals
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
-
-
-**[vcf2introgress.py](vcf2introgress.py)** - Converts `.vcf` file to INTROGRESS input files (4 files). Splits data into
-three categories: parental1, parental2 and admixed based on cluster assignment
-(provided in separate file; e.g. STRUCTURE output) and given threshold, and
-outputs data for loc that exceed a certain frequency difference between the
-two 'parental' categories. Note: not yet properly tested. also see similar
-`vcf_ancestry_matrix.py` script. I use the formatted CLUMPP output
-(`clumpp_K2.out.csv`) from the `structure_mp` wrapper as assignment file (max.
-of 2 clusters).
-
-	usage: vcf2introgress.py [-h] [--include]
-                         vcf_file assignment_file assign_cut_off freq_cut_off
-                         output_prefix
-
-	positional arguments:
-	  vcf_file         input file with SNP data (`.vcf`)
-	  assignment_file  text file (tsv or csv) with assignment values for each
-	                   individual (max. 2 clusters); e.g. a reformatted STRUCTURE
-	                   output file
-	  assign_cut_off   min. assignment value for an individual to be included in
-	                   the allele frequency calculation (i.e. putative purebred)
-	  freq_cut_off     min. allele frequency difference between the 2 clusters for
-	                   a locus to be included in the output
-	  output_prefix    prefix for output files
-	
-	optional arguments:
-	  -h, --help       show this help message and exit
-	  --include, -i    set this flag if parental pops need to be included in
-	                   output
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
-
-
-**[vcf2outflank.py](vcf2outflank.py)** - Converts `.vcf` file to OutFLANK input files (3 different files). Note: not
-yet properly tested.
-
-	usage: vcf2outflank.py [-h] vcf_file pop_file output_prefix
-
-	positional arguments:
-	  vcf_file       input file with SNP data (`.vcf`)
-	  pop_file       text file (tsv or csv) with individuals and populations
-	  output_prefix  prefix for output files
-	
-	optional arguments:
-	  -h, --help     show this help message and exit
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 

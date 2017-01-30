@@ -80,7 +80,7 @@ given (assuming diploid individual).
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
 
 
-**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file.
+**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file. *[File did not pass PEP8 check]*
 
 	usage: pyrad_trim.py [-h] pyrad_file seq_length
 
@@ -789,6 +789,23 @@ Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 	
 
 Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [inclusion_file.txt](input_examples/inclusion_file.txt).
+
+
+**[gdmatrix2tree.py](gdmatrix2tree.py)** - Creates UPGMA tree from a genetic distance matrix. Outputs ASCII format to
+STDOUT and a nexus-formatted tree to output file. Note: distance matrix can be
+created from `vcf` using `vcf_gdmatrix.py`.
+
+	usage: gdmatrix2tree.py [-h] matrix_file tree_output_file
+
+	positional arguments:
+	  matrix_file       text file (tsv or csv) with genetic distance matrix
+	  tree_output_file  nexus file with output tree
+	
+	optional arguments:
+	  -h, --help        show this help message and exit
+	
+
+Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
 
 
 **[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository

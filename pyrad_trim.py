@@ -9,6 +9,7 @@ __author__ = 'Pim Bongaerts'
 __copyright__ = 'Copyright (C) 2016 Pim Bongaerts'
 __license__ = 'GPL'
 
+
 def determine_seq_start(line):
     """ Determine the start position of the sequence """
     sample, seq = line.split()
@@ -17,6 +18,7 @@ def determine_seq_start(line):
         sys.exit('Unexpected error')
     else:
         return seq_start
+
 
 def main(pyrad_filename, seq_length):
     # Open input file

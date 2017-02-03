@@ -243,6 +243,45 @@ assignment file (max. of 2 clusters).
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
 
 
+**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
+pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
+file, (2) produces a histogram of genetic similarities, (3) lists the highest
+matches to assess for a potential clonal threshold, (4) clusters the groups of
+clones based on a particular threshold (supplied or roughly inferred), and (5)
+lists the clonal individuals that can be removed from the dataset (so that one
+individual with the least amount of missing data remains). If optional popfile
+is given, then clonal groups are sorted by population. Note: Firstly, the
+script is run with a `.vcf` file and an optional popfile to produce an output
+file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
+pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
+precalculated similarities under different thresholds (e.g. `python3
+vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
+
+	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
+                           [-o compare_file] [-t threshold]
+
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        input file with SNP data (`.vcf`)
+	  -p pop_file, --pop pop_file
+	                        text file (tsv or csv) with individuals and
+	                        populations (to accompany `.vcf` file)
+	  -i compare_file, --input compare_file
+	                        input file (csv) with previously calculated pairwise
+	                        comparisons (using the `--outputfile` option)
+	  -o compare_file, --output compare_file
+	                        output file (csv) for all pairwise comparisons (can
+	                        later be used as input with `--inputfile`)
+	  -t threshold, --threshold threshold
+	                        manual similarity threshold (e.g. `94.5` means at
+	                        least 90.5 percent allelic similarity for individuals
+	                        to be considered clones)
+	
+
+
+
+
 **[vcf_contrast_samples.py](vcf_contrast_samples.py)** - Contrast all samples in `.vcf` file against certain reference sample(s) (e.g.
 outgroup samples), to assess for fixed / private alleles.
 

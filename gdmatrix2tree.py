@@ -35,9 +35,9 @@ def main(matrix_filename, tree_output_filename):
     # Read matrix and labels from file
     distance_matrix = get_matrix_from_file(matrix_filename)
 
-    # Generate UPGMA tree from distance matrix
+    # Generate tree from distance matrix
     constructor = Bio.Phylo.TreeConstruction.DistanceTreeConstructor()
-    tree = constructor.upgma(distance_matrix)
+    tree = constructor.nj(distance_matrix)
     tree.ladderize()
 
     # Output to screen

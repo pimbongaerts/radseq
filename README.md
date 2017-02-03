@@ -5,114 +5,74 @@ These scripts all require [Python 3](https://www.python.org/download/releases/3.
 
 This documentation is dynamically generated using the listed [README_compile.py](README_compile.py) script, extracting purpose, usage and links to example files from the [argparse](https://docs.python.org/3/library/argparse.html) information of each script.
 
-## pyrad
+## vcf_clone_detect
 
-**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
-outputs as FASTA (order by popfile). Note: missing data are filled with gaps
-(`N`)
+**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
+pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
+file, (2) produces a histogram of genetic similarities, (3) lists the highest
+matches to assess for a potential clonal threshold, (4) clusters the groups of
+clones based on a particular threshold (supplied or roughly inferred), and (5)
+lists the clonal individuals that can be removed from the dataset (so that one
+individual with the least amount of missing data remains). If optional popfile
+is given, then clonal groups are sorted by population. Note: Firstly, the
+script is run with a `.vcf` file and an optional popfile to produce an output
+file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
+pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
+precalculated similarities under different thresholds (e.g. `python3
+vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
 
-	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
+	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
+                           [-o compare_file] [-t threshold]
+
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        input file with SNP data (`.vcf`)
+	  -p pop_file, --pop pop_file
+	                        text file (tsv or csv) with individuals and
+	                        populations (to accompany `.vcf` file)
+	  -i compare_file, --input compare_file
+	                        input file (csv) with previously calculated pairwise
+	                        comparisons (using the `--outputfile` option)
+	  -o compare_file, --output compare_file
+	                        output file (csv) for all pairwise comparisons (can
+	                        later be used as input with `--inputfile`)
+	  -t threshold, --threshold threshold
+	                        manual similarity threshold (e.g. `94.5` means at
+	                        least 90.5 percent allelic similarity for individuals
+	                        to be considered clones)
+	
+
+
+
+
+
+## structure_mp
+
+**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
+Takes a `.vcf` as input file and then creates a number of replicate datasets,
+each with a different pseudo-random subsampling of one SNP per RAD contig.
+Then, it runs the replicate datasets through STRUCTURE across multiple
+threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
+2007). Finally, it assesses the number of potential clusters using the
+Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
+NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
+CHROM, and different params files need to be present in current path.
+
+	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
 
 	positional arguments:
-	  pyrad_file  PyRAD file (`.loci`)
-	  pop_file    text file (tsv or csv) with individuals and populations
+	  vcf_file    input file with SNP data (`.vcf`)
+	  pop_file    population file (.txt)
+	  maxK        maximum number of K (expected clusters)
+	  replicates  number of replicate runs for each K
+	  threads     number of parallel threads
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
 	
 
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
-locus in pyRAD/ipyrad `.loci` or `.allele` file.
-
-	usage: pyrad2fasta.py [-h] pyrad_file
-
-	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
-
-
-**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
-indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
-file (not `.loci`).
-
-	usage: pyrad2migrate.py [-h] allele_file pop_file
-
-	positional arguments:
-	  allele_file  PyRAD allele file (.allele)
-	  pop_file     text file (tsv or csv) with individuals and populations
-	
-	optional arguments:
-	  -h, --help   show this help message and exit
-	
-
-Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
-
-
-**[pyrad_filter.py](pyrad_filter.py)** - Filters PyRAD output file (`.loci`) for those loci (1) present or absent
-(using --exclude flag) in supplied list, (2) genotyped for at least X number
-of samples, and (3) with at least Y number of informative sites. Note: can
-also be used for `.alleles` file but then 2x the number of samples should be
-given (assuming diploid individual).
-
-	usage: pyrad_filter.py [-h] [-e]
-                       pyrad_file loci_file sample_threshold snp_threshold
-
-	positional arguments:
-	  pyrad_file        PyRAD file (`.loci`)
-	  loci_file         text file with PyRAD loci to be included
-	  sample_threshold  min. number of samples genotyped for a locus to be
-	                    included
-	  snp_threshold     min. number of SNPs for a locus to be included
-	
-	optional arguments:
-	  -h, --help        show this help message and exit
-	  -e, --exclude     use the loci in loci_file as exclusion list
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
-
-
-**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file. *[File did not pass PEP8 check]*
-
-	usage: pyrad_trim.py [-h] pyrad_file seq_length
-
-	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
-	  seq_length  length to which sequences are trimmed
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
-
-
-**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
-clusters that exceed size threshold (min. number of sequences in cluster).
-First sequence of each cluster is outputted (together with size of overall
-cluster - note: not of that specific sequence). Prints the outputted and total
-number of clusters to STDOUT.
-
-	usage: pyradclust2fasta.py [-h] path cluster_threshold output_file
-
-	positional arguments:
-	  path               path that contains PyRAD `.clustS` files
-	  cluster_threshold  minimum size of cluster to be included
-	  output_file        name of output FASTA file
-	
-	optional arguments:
-	  -h, --help         show this help message and exit
-	
-
-
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 
 
@@ -241,45 +201,6 @@ assignment file (max. of 2 clusters).
 	
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
-
-
-**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
-pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
-file, (2) produces a histogram of genetic similarities, (3) lists the highest
-matches to assess for a potential clonal threshold, (4) clusters the groups of
-clones based on a particular threshold (supplied or roughly inferred), and (5)
-lists the clonal individuals that can be removed from the dataset (so that one
-individual with the least amount of missing data remains). If optional popfile
-is given, then clonal groups are sorted by population. Note: Firstly, the
-script is run with a `.vcf` file and an optional popfile to produce an output
-file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
-pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
-precalculated similarities under different thresholds (e.g. `python3
-vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
-
-	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
-                           [-o compare_file] [-t threshold]
-
-	optional arguments:
-	  -h, --help            show this help message and exit
-	  -v vcf_file, --vcf vcf_file
-	                        input file with SNP data (`.vcf`)
-	  -p pop_file, --pop pop_file
-	                        text file (tsv or csv) with individuals and
-	                        populations (to accompany `.vcf` file)
-	  -i compare_file, --input compare_file
-	                        input file (csv) with previously calculated pairwise
-	                        comparisons (using the `--outputfile` option)
-	  -o compare_file, --output compare_file
-	                        output file (csv) for all pairwise comparisons (can
-	                        later be used as input with `--inputfile`)
-	  -t threshold, --threshold threshold
-	                        manual similarity threshold (e.g. `94.5` means at
-	                        least 90.5 percent allelic similarity for individuals
-	                        to be considered clones)
-	
-
-
 
 
 **[vcf_contrast_samples.py](vcf_contrast_samples.py)** - Contrast all samples in `.vcf` file against certain reference sample(s) (e.g.
@@ -587,32 +508,114 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [fst_file.t
 
 
 
-## structure
+## pyrad
 
-**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
-Takes a `.vcf` as input file and then creates a number of replicate datasets,
-each with a different pseudo-random subsampling of one SNP per RAD contig.
-Then, it runs the replicate datasets through STRUCTURE across multiple
-threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
-2007). Finally, it assesses the number of potential clusters using the
-Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
-NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
-CHROM, and different params files need to be present in current path.
+**[pyrad2concat_fasta.py](pyrad2concat_fasta.py)** - Concatenates PyRAD/ipyrad sequences from `.loci` file for each individual and
+outputs as FASTA (order by popfile). Note: missing data are filled with gaps
+(`N`)
 
-	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
+	usage: pyrad2concat_fasta.py [-h] pyrad_file pop_file
 
 	positional arguments:
-	  vcf_file    input file with SNP data (`.vcf`)
-	  pop_file    population file (.txt)
-	  maxK        maximum number of K (expected clusters)
-	  replicates  number of replicate runs for each K
-	  threads     number of parallel threads
+	  pyrad_file  PyRAD file (`.loci`)
+	  pop_file    text file (tsv or csv) with individuals and populations
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
 	
 
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
+locus in pyRAD/ipyrad `.loci` or `.allele` file.
+
+	usage: pyrad2fasta.py [-h] pyrad_file
+
+	positional arguments:
+	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
+
+
+**[pyrad2migrate.py](pyrad2migrate.py)** - Converts PyRAD `.allele` file to migrate-n input file (population designated
+indicated in supplied popfile). Note: only appropriate for PyRAD `.allele`
+file (not `.loci`).
+
+	usage: pyrad2migrate.py [-h] allele_file pop_file
+
+	positional arguments:
+	  allele_file  PyRAD allele file (.allele)
+	  pop_file     text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help   show this help message and exit
+	
+
+Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[pyrad_filter.py](pyrad_filter.py)** - Filters PyRAD output file (`.loci`) for those loci (1) present or absent
+(using --exclude flag) in supplied list, (2) genotyped for at least X number
+of samples, and (3) with at least Y number of informative sites. Note: can
+also be used for `.alleles` file but then 2x the number of samples should be
+given (assuming diploid individual).
+
+	usage: pyrad_filter.py [-h] [-e]
+                       pyrad_file loci_file sample_threshold snp_threshold
+
+	positional arguments:
+	  pyrad_file        PyRAD file (`.loci`)
+	  loci_file         text file with PyRAD loci to be included
+	  sample_threshold  min. number of samples genotyped for a locus to be
+	                    included
+	  snp_threshold     min. number of SNPs for a locus to be included
+	
+	optional arguments:
+	  -h, --help        show this help message and exit
+	  -e, --exclude     use the loci in loci_file as exclusion list
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
+
+
+**[pyrad_trim.py](pyrad_trim.py)** - Trims sequence length in PyRAD/ipyrad `.alleles` or `.loci` file.
+
+	usage: pyrad_trim.py [-h] pyrad_file seq_length
+
+	positional arguments:
+	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	  seq_length  length to which sequences are trimmed
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
+
+
+**[pyradclust2fasta.py](pyradclust2fasta.py)** - Creates one large FASTA from all PyRAD clustS files in directory. Only outputs
+clusters that exceed size threshold (min. number of sequences in cluster).
+First sequence of each cluster is outputted (together with size of overall
+cluster - note: not of that specific sequence). Prints the outputted and total
+number of clusters to STDOUT.
+
+	usage: pyradclust2fasta.py [-h] path cluster_threshold output_file
+
+	positional arguments:
+	  path               path that contains PyRAD `.clustS` files
+	  cluster_threshold  minimum size of cluster to be included
+	  output_file        name of output FASTA file
+	
+	optional arguments:
+	  -h, --help         show this help message and exit
+	
+
+
 
 
 
@@ -850,7 +853,7 @@ Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
 **[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
 (https://github.com/pimbongaerts/radseq). Categories are assigned based on
 prefix, usage information is extracted from argparse, and example input files
-are assigned based on argument names.
+are assigned based on argument names. *[File did not pass PEP8 check]*
 
 	usage: README_compile.py [-h]
 

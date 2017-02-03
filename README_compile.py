@@ -19,8 +19,8 @@ __license__ = 'GPL'
 HEADER_FILE = 'README_header.md'
 PATH = '.'
 DOCSTRING = '"""'
-GROUP_TAGS = ['pyrad', 'vcf', 'structure', 'fastq', 'mapping', 'popfile',
-              'other']
+GROUP_TAGS = ['vcf_clone_detect', 'structure_mp', 'vcf', 'pyrad', 'fastq', 
+              'mapping', 'popfile', 'other']
 GROUP_OTHER = 'other'
 EXAMPLES_FOLDER = 'input_examples/'
 EXAMPLES_DESCR = 'Example input file(s): '

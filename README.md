@@ -98,6 +98,21 @@ population designation, run script as `python3 popfile_from_vcf vcf_file 3 5`.
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
 
+**[popfile_match_vcf.py](popfile_match_vcf.py)** - Cleans up popfile by eliminating any individuals that are not in `.vcf` file.
+
+	usage: popfile_match_vcf.py [-h] vcf_file pop_file
+
+	positional arguments:
+	  vcf_file    input file with SNP data (`.vcf`)
+	  pop_file    text file (tsv or csv) with individuals and populations
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
+
+
 **[vcf2hapmatrix.py](vcf2hapmatrix.py)** - Converts `.vcf` file to Tag Haplotype Matrix (with Chrom), with order of
 individuals as indicated in optional file. Note: not yet properly tested. SNPs
 of same CHROM (first column) in `.vcf` should be grouped
@@ -201,6 +216,37 @@ assignment file (max. of 2 clusters).
 	
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
+
+
+**[vcf_append_simulated_crosses.py](vcf_append_simulated_crosses.py)** - Generates artificial crosses between individuals from two indicated (in a
+popfile) parentalgroups, and appends crossed individuals to `.vcf` file. Note:
+individual SNPs on a single CHROM are independently crossed as if they are not
+physically linked - therefore only use when subsampling a single SNP / CHROM.
+
+	usage: vcf_append_simulated_crosses.py [-h] [--n_crosses n_crosses]
+                                       [--prefix prefix] [--parentalnames]
+                                       vcf_file pop_file
+
+	positional arguments:
+	  vcf_file              input file with SNP data (`.vcf`)
+	  pop_file              text file (tsv or csv) with the names of the
+	                        individuals used for the simulated crosses, and in the
+	                        second column which parental population they belong to
+	                        (any name can be chosen - as long as there are exactly
+	                        two distinct values)
+	
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  --n_crosses n_crosses, -n n_crosses
+	                        number of crosses to simulate (should be no higher
+	                        than the number of individuals in each of the two
+	                        parental populations)
+	  --prefix prefix       prefix for crosses (used only if --parentalnames is
+	                        not set)
+	  --parentalnames       set flag to use names of both parents for cross
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 
 **[vcf_contrast_samples.py](vcf_contrast_samples.py)** - Contrast all samples in `.vcf` file against certain reference sample(s) (e.g.

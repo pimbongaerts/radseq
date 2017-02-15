@@ -165,18 +165,26 @@ of 2 clusters).
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
 
 
-**[vcf2outflank.py](vcf2outflank.py)** - Converts `.vcf` file to OutFLANK input files (3 different files). Note: not
-yet properly tested.
+**[vcf2tess.py](vcf2tess.py)** - Converts `.vcf` file to TESS input files (genotypes and coordinates). Requires
+a popfile and a file with coordinates for each population (decimal ]degrees),
+a then simulates individual coordinates by adding a certain amount of noise.
+Note: outputs individuals in the same order as popfile.
 
-	usage: vcf2outflank.py [-h] vcf_file pop_file output_prefix
+	usage: vcf2tess.py [-h] [--noise noise]
+                   vcf_file pop_file coord_file output_prefix
 
 	positional arguments:
-	  vcf_file       input file with SNP data (`.vcf`)
-	  pop_file       text file (tsv or csv) with individuals and populations
-	  output_prefix  prefix for output files
+	  vcf_file              input file with SNP data (`.vcf`)
+	  pop_file              text file (tsv or csv) with individuals and
+	                        populations
+	  coord_file            text file (tsv or csv) with populations and their lats
+	                        and longs (in decimal degrees)
+	  output_prefix         name prefix for output files
 	
 	optional arguments:
-	  -h, --help     show this help message and exit
+	  -h, --help            show this help message and exit
+	  --noise noise, -n noise
+	                        max. amount of noise to be added (default = 1e-10)
 	
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).

@@ -5,77 +5,6 @@ These scripts all require [Python 3](https://www.python.org/download/releases/3.
 
 This documentation is dynamically generated using the listed [README_compile.py](README_compile.py) script, extracting purpose, usage and links to example files from the [argparse](https://docs.python.org/3/library/argparse.html) information of each script.
 
-## vcf_clone_detect
-
-**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
-pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
-file, (2) produces a histogram of genetic similarities, (3) lists the highest
-matches to assess for a potential clonal threshold, (4) clusters the groups of
-clones based on a particular threshold (supplied or roughly inferred), and (5)
-lists the clonal individuals that can be removed from the dataset (so that one
-individual with the least amount of missing data remains). If optional popfile
-is given, then clonal groups are sorted by population. Note: Firstly, the
-script is run with a `.vcf` file and an optional popfile to produce an output
-file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
-pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
-precalculated similarities under different thresholds (e.g. `python3
-vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
-
-	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
-                           [-o compare_file] [-t threshold]
-
-	optional arguments:
-	  -h, --help            show this help message and exit
-	  -v vcf_file, --vcf vcf_file
-	                        input file with SNP data (`.vcf`)
-	  -p pop_file, --pop pop_file
-	                        text file (tsv or csv) with individuals and
-	                        populations (to accompany `.vcf` file)
-	  -i compare_file, --input compare_file
-	                        input file (csv) with previously calculated pairwise
-	                        comparisons (using the `--outputfile` option)
-	  -o compare_file, --output compare_file
-	                        output file (csv) for all pairwise comparisons (can
-	                        later be used as input with `--inputfile`)
-	  -t threshold, --threshold threshold
-	                        manual similarity threshold (e.g. `94.5` means at
-	                        least 90.5 percent allelic similarity for individuals
-	                        to be considered clones)
-	
-
-
-
-
-
-## structure_mp
-
-**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
-Takes a `.vcf` as input file and then creates a number of replicate datasets,
-each with a different pseudo-random subsampling of one SNP per RAD contig.
-Then, it runs the replicate datasets through STRUCTURE across multiple
-threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
-2007). Finally, it assesses the number of potential clusters using the
-Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
-NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
-CHROM, and different params files need to be present in current path.
-
-	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
-
-	positional arguments:
-	  vcf_file    input file with SNP data (`.vcf`)
-	  pop_file    population file (.txt)
-	  maxK        maximum number of K (expected clusters)
-	  replicates  number of replicate runs for each K
-	  threads     number of parallel threads
-	
-	optional arguments:
-	  -h, --help  show this help message and exit
-	
-
-Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
-
-
-
 ## vcf
 
 **[popfile_from_vcf.py](popfile_from_vcf.py)** - Creates tab-separated popfile from `.vcf`, using a subset of the sample name
@@ -255,6 +184,45 @@ physically linked - therefore only use when subsampling a single SNP / CHROM.
 	
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
+pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
+file, (2) produces a histogram of genetic similarities, (3) lists the highest
+matches to assess for a potential clonal threshold, (4) clusters the groups of
+clones based on a particular threshold (supplied or roughly inferred), and (5)
+lists the clonal individuals that can be removed from the dataset (so that one
+individual with the least amount of missing data remains). If optional popfile
+is given, then clonal groups are sorted by population. Note: Firstly, the
+script is run with a `.vcf` file and an optional popfile to produce an output
+file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
+pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
+precalculated similarities under different thresholds (e.g. `python3
+vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
+
+	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
+                           [-o compare_file] [-t threshold]
+
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        input file with SNP data (`.vcf`)
+	  -p pop_file, --pop pop_file
+	                        text file (tsv or csv) with individuals and
+	                        populations (to accompany `.vcf` file)
+	  -i compare_file, --input compare_file
+	                        input file (csv) with previously calculated pairwise
+	                        comparisons (using the `--outputfile` option)
+	  -o compare_file, --output compare_file
+	                        output file (csv) for all pairwise comparisons (can
+	                        later be used as input with `--inputfile`)
+	  -t threshold, --threshold threshold
+	                        manual similarity threshold (e.g. `94.5` means at
+	                        least 90.5 percent allelic similarity for individuals
+	                        to be considered clones)
+	
+
+
 
 
 **[vcf_contrast_samples.py](vcf_contrast_samples.py)** - Contrast all samples in `.vcf` file against certain reference sample(s) (e.g.
@@ -907,7 +875,7 @@ Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
 **[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
 (https://github.com/pimbongaerts/radseq). Categories are assigned based on
 prefix, usage information is extracted from argparse, and example input files
-are assigned based on argument names. *[File did not pass PEP8 check]*
+are assigned based on argument names.
 
 	usage: README_compile.py [-h]
 
@@ -916,5 +884,31 @@ are assigned based on argument names. *[File did not pass PEP8 check]*
 	
 
 
+
+
+**[structure_mp.py](structure_mp.py)** - Multi-processing STRUCTURE (Pritchard et al 2000) wrapper for RAD-seq data.
+Takes a `.vcf` as input file and then creates a number of replicate datasets,
+each with a different pseudo-random subsampling of one SNP per RAD contig.
+Then, it runs the replicate datasets through STRUCTURE across multiple
+threads, and summarises the outcome with CLUMPP (Jakobsson and Rosenberg
+2007). Finally, it assesses the number of potential clusters using the
+Puechmaille 2016 method (only suitable for certain datasets). Note: STILL
+NEEDS TO BE MODIFIED FOR GENERAL USE. Input file (`.vcf`) should be sorted by
+CHROM, and different params files need to be present in current path.
+
+	usage: structure_mp.py [-h] vcf_file pop_file maxK replicates threads
+
+	positional arguments:
+	  vcf_file    input file with SNP data (`.vcf`)
+	  pop_file    population file (.txt)
+	  maxK        maximum number of K (expected clusters)
+	  replicates  number of replicate runs for each K
+	  threads     number of parallel threads
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 

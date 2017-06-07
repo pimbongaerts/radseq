@@ -394,7 +394,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--threshold', dest='threshold',
                         metavar='threshold', default=0.0,
                         help='manual similarity threshold (e.g. `94.5` means \
-                        at least 90.5 percent allelic similarity for \
+                        at least 94.5 percent allelic similarity for \
                         individuals to be considered clones)')
     args = parser.parse_args()
     main(args.vcf_filename, args.input_filename, args.output_filename,

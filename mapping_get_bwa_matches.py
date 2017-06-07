@@ -2,8 +2,8 @@
 """
 Extracts a list of succesfully mapped loci from `.sam` file (produced with
 `bwa mem`). Successfully mapped loci are identified by default identified as
-those with flags 0 and 16 (can be adjusted in MATCH_FLAGS constant). Configured
-for use with single-end reads.
+those with flags 0 and 16 (can be adjusted in MATCH_FLAGS constant), and a 
+mapping quality of >=20. Configured for use with single-end reads.
 """
 import sys
 import argparse
@@ -20,6 +20,7 @@ COL_POS = 3
 COL_MAPQ = 4
 COL_SEQ = 9
 MATCH_FLAGS = [0, 16]
+MIN_MAPQ = 20
 
 
 def is_header(line):
@@ -34,11 +35,13 @@ def main(sam_filename):
     for line in sam_file:
         if not is_header(line):
             cols = line.split('\t')
-            if int(cols[COL_FLAG]) in MATCH_FLAGS:
+            if (int(cols[COL_FLAG]) in MATCH_FLAGS and 
+                int(cols[COL_MAPQ]) >= MIN_MAPQ):
                 # Output match to file
-                print('{0}\t{1}\t{2}'.format(cols[COL_QNAME],
-                                             cols[COL_RNAME],
-                                             cols[COL_FLAG]))
+                print('{0}\t{1}\t{2}\t{3}'.format(cols[COL_QNAME],
+                                                  cols[COL_RNAME],
+                                                  cols[COL_POS],
+                                                  cols[COL_FLAG]))
                 match_count += 1
     sam_file.close()
 

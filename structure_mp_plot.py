@@ -25,6 +25,15 @@ def get_csv_files_in_path(path):
     """ Return list with all csv files in path """
     return [filename for filename in glob.glob(os.path.join(path, '*.csv'))]
 
+def get_order_from_txt_file(order_filename):
+    """ Read order of samples from file """
+    sample_order = []
+    if order_filename:
+        order_file = open(order_filename, 'r')
+        for line in order_file:
+            cols = line.rstrip().replace(',', ' ').split()
+            sample_order.append(cols[0])
+    return sample_order
 
 def group_csv_files_by_K(csv_files):
     """ Group csv files by the number of clusters """
@@ -37,9 +46,12 @@ def group_csv_files_by_K(csv_files):
     return csv_files_by_K
 
 
-def plot_from_csv_file(csv_file, popnames):
+def plot_from_csv_file(csv_file, popnames, sample_order):
     """ Generate plot from data in csv file """
     df = pd.read_csv(csv_file, header=None)
+    df.index = df[df.columns[0]]
+    if sample_order:
+        df = df.reindex(sample_order)
 
     # Plot bar settings
     bar_width = 1
@@ -72,7 +84,7 @@ def plot_from_csv_file(csv_file, popnames):
 
 
 def output_plots_to_pdf(pdf_output_filename, csv_files_by_K, clumpp_only,
-                        popnames):
+                        popnames, sample_order):
     """ Output plots (sorted by K) to multi-page PDF """
     with PdfPages(pdf_output_filename) as pdf:
         for K_value in sorted(csv_files_by_K):
@@ -80,26 +92,31 @@ def output_plots_to_pdf(pdf_output_filename, csv_files_by_K, clumpp_only,
             for csv_file in csv_files_by_K[K_value]:
                 # If clumpp flag set  then only output summary
                 if (not clumpp_only) or (CLUMPP_NAME in csv_file):
-                    plot = plot_from_csv_file(csv_file, popnames)
+                    plot = plot_from_csv_file(csv_file, popnames, sample_order)
                     pdf.savefig()
                     plot.close()
 
 
-def main(path, clumpp_only, popnames):
+def main(path, order_filename, clumpp_only, popnames):
     csv_files = get_csv_files_in_path(path)
     csv_files_by_K = group_csv_files_by_K(csv_files)
+    sample_order = get_order_from_txt_file(order_filename)
     pdf_output_filename = '{0}.pdf'.format(path.replace('/', ''))
     output_plots_to_pdf(pdf_output_filename, csv_files_by_K, clumpp_only,
-                        popnames)
+                        popnames, sample_order)
     os.system('open {0}'.format(pdf_output_filename))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('path', metavar='path',
                         help='path to structure_mp results')
+    parser.add_argument('-o', '--orderfile', dest='order_filename',
+                        metavar='order_filename',
+                        help='optional file specifying the output order of \
+                              samples')
     parser.add_argument('-p', '--popnames', action='store_true',
                         help='set flag to output population names')
     parser.add_argument('-c', '--clumpp_only', action='store_true',
                         help='set flag to only plot CLUMPP summary')
     args = parser.parse_args()
-    main(args.path, args.clumpp_only, args.popnames)
+    main(args.path, args.order_filename, args.clumpp_only, args.popnames)

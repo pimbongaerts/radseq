@@ -422,6 +422,27 @@ for `vcf_include_chrom.py`.
 
 
 
+**[vcf_remap.py](vcf_remap.py)** - Remaps variants in VCF format to new CHROM and POS as obtained through the
+`mapping_get_bwa_matches.py` scripts. Positions are rough estimates because:
+(1) new position is simply an offset of the mapping position + 0-based
+position in locus (and e.g. do not take into account reference insertions),
+(2) one standard contig length is used to determine pos in reverse mapping
+reads (flag 16).
+
+	usage: vcf_remap.py [-h] vcf_file mapping_file locus_length
+
+	positional arguments:
+	  vcf_file      vcf input file
+	  mapping_file  file with mapping results
+	  locus_length  length of query loci
+	
+	optional arguments:
+	  -h, --help    show this help message and exit
+	
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
+
+
 **[vcf_remove_chrom.py](vcf_remove_chrom.py)** - Excludes those loci (/CHROMs) in `.vcf` that are listed in exclusion list.
 Also outputs a logfile with loci that were listed but not present in `.vcf`.
 
@@ -549,16 +570,18 @@ outputs as FASTA (order by popfile). Note: missing data are filled with gaps
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
 
 
-**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) for each
-locus in pyRAD/ipyrad `.loci` or `.allele` file.
+**[pyrad2fasta.py](pyrad2fasta.py)** - Create FASTA file with a representative sequence (using first sample) or all
+sequences (when --all_seqs flag is set) for each locus in pyRAD/ipyrad `.loci`
+or `.allele` file.
 
-	usage: pyrad2fasta.py [-h] pyrad_file
+	usage: pyrad2fasta.py [-h] [-a] pyrad_file
 
 	positional arguments:
-	  pyrad_file  PyRAD allele file (`.loci` or `.allele`)
+	  pyrad_file      PyRAD allele file (`.loci` or `.allele`)
 	
 	optional arguments:
-	  -h, --help  show this help message and exit
+	  -h, --help      show this help message and exit
+	  -a, --all_seqs  set flag to output all sequences
 	
 
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
@@ -875,6 +898,21 @@ Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 
 ## other
 
+**[fasta_exclude.py](fasta_exclude.py)** - Reduces FASTA file to those loci not listed in supplied text file.
+
+	usage: fasta_exclude.py [-h] fasta_file exclusion_file
+
+	positional arguments:
+	  fasta_file      FASTA input file (`.fasta`/ `.fa`)
+	  exclusion_file  text file with names of loci to be excluded
+	
+	optional arguments:
+	  -h, --help      show this help message and exit
+	
+
+Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [exclusion_file.txt](input_examples/exclusion_file.txt).
+
+
 **[fasta_include.py](fasta_include.py)** - Reduces FASTA file to only those loci listed in supplied text file.
 
 	usage: fasta_include.py [-h] fasta_file inclusion_file
@@ -905,6 +943,21 @@ created from `vcf` using `vcf_gdmatrix.py`.
 	
 
 Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
+
+
+**[nexus_set_label_colors.py](nexus_set_label_colors.py)** - Set the color of each label in a NEXUS tree file.
+
+	usage: nexus_set_label_colors.py [-h] nexus_filename color_filename
+
+	positional arguments:
+	  nexus_filename  nexus input file)
+	  color_filename  file with samples and corresponding colors
+	
+	optional arguments:
+	  -h, --help      show this help message and exit
+	
+
+
 
 
 **[README_compile.py](README_compile.py)** - Compiles README markdown file for this repository
@@ -951,17 +1004,19 @@ does not need to be supplied. *[File did not pass PEP8 check]*
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
 
-**[structure_mp_plot.py](structure_mp_plot.py)** - Plots all the results from a structure_mp run to a multi-page PDF.
+**[structure_mp_plot.py](structure_mp_plot.py)** - Plots all the results from a structure_mp run to a multi-page PDF. *[File did not pass PEP8 check]*
 
-	usage: structure_mp_plot.py [-h] [-p] [-c] path
+	usage: structure_mp_plot.py [-h] [-o order_filename] [-p] [-c] path
 
 	positional arguments:
-	  path               path to structure_mp results
+	  path                  path to structure_mp results
 	
 	optional arguments:
-	  -h, --help         show this help message and exit
-	  -p, --popnames     set flag to output population names
-	  -c, --clumpp_only  set flag to only plot CLUMPP summary
+	  -h, --help            show this help message and exit
+	  -o order_filename, --orderfile order_filename
+	                        optional file specifying the output order of samples
+	  -p, --popnames        set flag to output population names
+	  -c, --clumpp_only     set flag to only plot CLUMPP summary
 	
 
 

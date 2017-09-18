@@ -27,7 +27,7 @@ def main(input_filename, all_seqs):
             if all_seqs:
                 for sample in sorted(sequences_in_loci):
                     print('>{0}_{1}'.format(locus_number, sample))
-                    print('{0}'.format(sequences_in_loci[sample]))                    
+                    print('{0}'.format(sequences_in_loci[sample]))
                 sequences_in_loci.clear()
             else:
                 print('>{0}'.format(locus_number))

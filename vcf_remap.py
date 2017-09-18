@@ -71,6 +71,7 @@ def remap_vcf_file(vcf_filename, mapping_info, locus_len):
         print('{0}\t{1}\t{2}'.format(new_chrom, new_pos, rest_of_line))
     vcf_file.close()
 
+
 def main(vcf_filename, mapping_filename, locus_len):
     mapping_info = load_mapping_results(mapping_filename)
     remap_vcf_file(vcf_filename, mapping_info, locus_len)

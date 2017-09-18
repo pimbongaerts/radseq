@@ -42,13 +42,13 @@ def main(vcf_filename, inclusion_filename):
                 print(line, end='')
                 included_loci.append(chrom)
 
-    # Assess whether any items in exclusion list were not found in VCF
+    # Assess whether any items in inclusion list were not found in VCF
     loci_not_found = []
     for locus in inclusion_list:
         if locus not in included_loci:
             loci_not_found.append(locus)
 
-    # Output log file if any items in exclusion list were not found
+    # Output log file if any items in inclusion list were not found
     if len(loci_not_found) > 0:
         output_log = open('{0}_notfound.log'.format(vcf_filename), 'w')
         concat_loci_not_found = ','.join(loci_not_found)

@@ -111,4 +111,4 @@ if __name__ == '__main__':
                         help='text file (tsv or csv) with barcodes and sample \
                         names')
     args = parser.parse_args()
-    main(args.path, args.output_filename)
+    main(args.path, args.barcode_filename)

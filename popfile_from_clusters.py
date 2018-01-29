@@ -20,7 +20,23 @@ UNASSIGNED = 'UNASSIGNED'
 AMBIGUOUS = 'AMBIGUOUS'
 
 
-def main(assignment_filename, assign_cut_off):
+def get_pop_assignments(pop_filename):
+    """ Read order of samples from file """
+    assigned_pops = {}
+    if pop_filename:
+        pop_file = open(pop_filename, 'r')
+        for line in pop_file:
+            cols = line.rstrip().replace(',', ' ').split()
+            assigned_pops[cols[0]] = cols[1]
+    pop_file.close()
+    return assigned_pops
+
+
+def main(assignment_filename, assign_cut_off, pop_filename):
+    # Read pop assignments if popfile given
+    if pop_filename:
+        assigned_pops = get_pop_assignments(pop_filename)
+
     # Open csv or tsv file with STRUCTURE outcome
     assignment_file = open(assignment_filename, 'r')
 
@@ -33,8 +49,13 @@ def main(assignment_filename, assign_cut_off):
                 if assigned_cluster != UNASSIGNED:
                     assigned_cluster = AMBIGUOUS
                 else:
-                    assigned_cluster = '{0}_{1}'.format(POPNAME_PREFIX,
-                                                        cluster_no)
+                    if pop_filename:
+                        assigned_pop = assigned_pops[cols[0]]
+                        assigned_cluster = '{0}_{1}'.format(assigned_pop,
+                                                            cluster_no)
+                    else:
+                        assigned_cluster = '{0}_{1}'.format(POPNAME_PREFIX,
+                                                            cluster_no)
         print('{0}\t{1}'.format(cols[0], assigned_cluster))
 
 if __name__ == '__main__':
@@ -46,5 +67,9 @@ if __name__ == '__main__':
     parser.add_argument('assign_cut_off', metavar='assign_cut_off', type=float,
                         help='min. assignment value for an individual to be \
                         assigned to a cluster')
+    parser.add_argument('-p', '--popfile', dest='pop_filename',
+                        metavar='pop_filename',
+                        help='optional popfile: use original popnames as \
+                        assignment prefix')
     args = parser.parse_args()
-    main(args.assignment_filename, args.assign_cut_off)
+    main(args.assignment_filename, args.assign_cut_off, args.pop_filename)

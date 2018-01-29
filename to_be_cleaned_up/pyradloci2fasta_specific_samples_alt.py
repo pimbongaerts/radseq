@@ -14,7 +14,6 @@ import sys
 
 def main(inputFilename, reference_samples):	
 	inputFile = open(inputFilename, 'r')
-	outputFile = open(inputFilename.replace('.loci','') + '.fa', 'w')
 	sequence = alt_sequence = ''
 	locuscount = 0
 	
@@ -30,16 +29,15 @@ def main(inputFilename, reference_samples):
 			# Retrieve locus number and write to output file
 			cols = line.split('|')
 			locus_number = cols[1].strip()
-			outputFile.write('>{0}\n'.format(locus_number))
+			print('>{0}'.format(locus_number))
 			if sequence == '':
-			    sequence_no_gaps = alt_sequence.replace('-','')
+			    final_sequence = alt_sequence #.replace('-','') to remove gaps
 			else:
-			    sequence_no_gaps = sequence.replace('-','')
-			outputFile.write('{0}\n'.format(sequence_no_gaps))
+			    final_sequence = sequence  #.replace('-','') to remove gaps
+			print('{0}'.format(final_sequence))
 			locuscount += 1
 			sequence = ''
 			
 	inputFile.close()
-	outputFile.close()
 
 main(sys.argv[1],sys.argv[2:])

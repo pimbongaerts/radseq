@@ -25,7 +25,7 @@ def main(vcf_filename, start_pos, end_pos):
 
     # Output samples and pop designations
     for sample in samples:
-            print('{0}\t{1}'.format(sample, sample[start_pos-1:end_pos]))
+        print('{0}\t{1}'.format(sample, sample[start_pos - 1:end_pos]))
     vcf_file.close()
 
 if __name__ == '__main__':

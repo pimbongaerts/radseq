@@ -18,7 +18,7 @@ def get_dict_of_name_changes(samplenames_filename):
     rename_file = open(samplenames_filename, 'r')
     name_changes = {}
     for line in rename_file:
-        cols = line.split()
+        cols = line.replace(',', '\t').split()
         name_changes[cols[0].strip()] = cols[1].strip()
     rename_file.close()
     return name_changes
@@ -27,6 +27,9 @@ def get_dict_of_name_changes(samplenames_filename):
 def main(vcf_filename, samplenames_filename):
     # Initialise dict with new sample names
     name_changes = get_dict_of_name_changes(samplenames_filename)
+
+    # Open logfile for missing samples
+    log_file = open('vcf_rename_errorlog.txt', 'w')
 
     # Open input and output files
     vcf_file = open(vcf_filename, 'r')
@@ -37,10 +40,11 @@ def main(vcf_filename, samplenames_filename):
                 if old_name in line:
                     line = line.replace(old_name, new_name)
                 else:
-                    sys.exit('Cannot find sample: {0}\n'.format(old_name))
+                    log_file.write('Cannot find sample: {0}\n'.format(old_name))
         print(line, end='')
 
     vcf_file.close()
+    log_file.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

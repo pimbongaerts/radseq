@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Creates UPGMA tree from a genetic distance matrix. Outputs ASCII format to
+Creates NJ tree from a genetic distance matrix. Outputs ASCII format to
 STDOUT and a nexus-formatted tree to output file. Note: distance matrix can
 be created from `vcf` using `vcf_gdmatrix.py`.
 """

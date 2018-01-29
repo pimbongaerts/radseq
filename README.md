@@ -5,6 +5,13 @@ These scripts all require [Python 3](https://www.python.org/download/releases/3.
 
 This documentation is dynamically generated using the listed [README_compile.py](README_compile.py) script, extracting purpose, usage and links to example files from the [argparse](https://docs.python.org/3/library/argparse.html) information of each script.
 
+## [recently added]
+**[vcf_remap2genome.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_remap2genome.py)** - script to remap VCF from de novo RAD assembly back to a reference genome
+
+**[pyrad_find_caps_markers.py](https://github.com/pimbongaerts/radseq/blob/master/pyrad_find_caps_markers.py)** - search PyRAD output file for diagnostic CAPS loci that can distinguish two groups (or one group and all other samples)
+
+**[vcf_clone_detect.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_clone_detect.py)** - script to facilitate identification of clones in dataset
+
 ## vcf
 
 **[popfile_from_vcf.py](popfile_from_vcf.py)** - Creates tab-separated popfile from `.vcf`, using a subset of the sample name
@@ -22,7 +29,7 @@ population designation, run script as `python3 popfile_from_vcf vcf_file 3 5`.
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -37,7 +44,7 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -56,7 +63,7 @@ together/sequentially, and all individuals need to be listed in order_file.
 	  -h, --help            show this help message and exit
 	  -o order_file, --order_file order_file
 	                        text file with preferred output order of individuals
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -71,9 +78,9 @@ two 'parental' categories. Note: not yet properly tested. also see similar
 of 2 clusters).
 
 	usage: vcf2introgress.py [-h] [--include]
-                         vcf_file assignment_file assign_cut_off freq_cut_off
-                         output_prefix
-
+	                     vcf_file assignment_file assign_cut_off freq_cut_off
+	                     output_prefix
+	
 	positional arguments:
 	  vcf_file         input file with SNP data (`.vcf`)
 	  assignment_file  text file (tsv or csv) with assignment values for each
@@ -89,7 +96,7 @@ of 2 clusters).
 	  -h, --help       show this help message and exit
 	  --include, -i    set this flag if parental pops need to be included in
 	                   output
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
 
@@ -100,8 +107,8 @@ a then simulates individual coordinates by adding a certain amount of noise.
 Note: outputs individuals in the same order as popfile.
 
 	usage: vcf2tess.py [-h] [--noise noise]
-                   vcf_file pop_file coord_file output_prefix
-
+	               vcf_file pop_file coord_file output_prefix
+	
 	positional arguments:
 	  vcf_file              input file with SNP data (`.vcf`)
 	  pop_file              text file (tsv or csv) with individuals and
@@ -114,7 +121,7 @@ Note: outputs individuals in the same order as popfile.
 	  -h, --help            show this help message and exit
 	  --noise noise, -n noise
 	                        max. amount of noise to be added (default = 1e-10)
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -131,9 +138,9 @@ CLUMPP output (`clumpp_K2.out.csv`) from the `structure_mp` wrapper as
 assignment file (max. of 2 clusters).
 
 	usage: vcf_ancestry_matrix.py [-h] [--include inclusion_file]
-                              vcf_file assignment_file assign_cut_off
-                              freq_cut_off
-
+	                          vcf_file assignment_file assign_cut_off
+	                          freq_cut_off
+	
 	positional arguments:
 	  vcf_file              input file with SNP data (`.vcf`)
 	  assignment_file       text file (tsv or csv) with assignment values for each
@@ -150,7 +157,7 @@ assignment file (max. of 2 clusters).
 	  --include inclusion_file, -i inclusion_file
 	                        text file with loci to be included in output
 	                        regardless of allele frequency differences
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [assignment_file.csv](input_examples/assignment_file.csv).
 
@@ -161,9 +168,9 @@ individual SNPs on a single CHROM are independently crossed as if they are not
 physically linked - therefore only use when subsampling a single SNP / CHROM.
 
 	usage: vcf_append_simulated_crosses.py [-h] [--n_crosses n_crosses]
-                                       [--prefix prefix] [--parentalnames]
-                                       vcf_file pop_file
-
+	                                   [--prefix prefix] [--parentalnames]
+	                                   vcf_file pop_file
+	
 	positional arguments:
 	  vcf_file              input file with SNP data (`.vcf`)
 	  pop_file              text file (tsv or csv) with the names of the
@@ -181,7 +188,7 @@ physically linked - therefore only use when subsampling a single SNP / CHROM.
 	  --prefix prefix       prefix for crosses (used only if --parentalnames is
 	                        not set)
 	  --parentalnames       set flag to use names of both parents for cross
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -201,8 +208,8 @@ precalculated similarities under different thresholds (e.g. `python3
 vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
 
 	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
-                           [-o compare_file] [-t threshold]
-
+	                       [-o compare_file] [-t threshold]
+	
 	optional arguments:
 	  -h, --help            show this help message and exit
 	  -v vcf_file, --vcf vcf_file
@@ -220,7 +227,7 @@ vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
 	                        manual similarity threshold (e.g. `94.5` means at
 	                        least 94.5 percent allelic similarity for individuals
 	                        to be considered clones)
-	
+
 
 
 
@@ -229,9 +236,9 @@ vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`)
 outgroup samples), to assess for fixed / private alleles.
 
 	usage: vcf_contrast_samples.py [-h]
-                               vcf_file
-                               [reference_samples [reference_samples ...]]
-
+	                           vcf_file
+	                           [reference_samples [reference_samples ...]]
+	
 	positional arguments:
 	  vcf_file           input file with SNP data (`.vcf`)
 	  reference_samples  sample(s) against which the remainder of the dataset will
@@ -239,7 +246,7 @@ outgroup samples), to assess for fixed / private alleles.
 	
 	optional arguments:
 	  -h, --help         show this help message and exit
-	
+
 
 
 
@@ -256,7 +263,7 @@ using `$ sort -rn --key=5 output_file.txt | head -n 50` in the terminal.
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -273,7 +280,7 @@ indicate order in matrix.
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -292,7 +299,7 @@ by group.
 	
 	optional arguments:
 	  -h, --help   show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [factor_file.txt](input_examples/factor_file.txt).
 
@@ -309,7 +316,7 @@ script is to restore the original CHROM/POS for markers that were identified.
 	
 	optional arguments:
 	  -h, --help          show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [markernumbers_file.txt](input_examples/markernumbers_file.txt).
 
@@ -324,7 +331,7 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [markernumb
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [inclusion_file.txt](input_examples/inclusion_file.txt).
 
@@ -338,8 +345,8 @@ individuals that are listed in popfile are taken into account to determine
 proportion of individuals genotyped (but all indivs are outputted).
 
 	usage: vcf_minrep_filter.py [-h]
-                            vcf_file pop_file min_proportion output_filename
-
+	                        vcf_file pop_file min_proportion output_filename
+	
 	positional arguments:
 	  vcf_file         input file with SNP data (`.vcf`)
 	  pop_file         text file (tsv or csv) with individuals and populations
@@ -350,7 +357,34 @@ proportion of individuals genotyped (but all indivs are outputted).
 	
 	optional arguments:
 	  -h, --help       show this help message and exit
+
+
+Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
+
+
+**[vcf_minrep_filter_abs.py](vcf_minrep_filter_abs.py)** - Filters `.vcf` file for SNPs that are genotyped for a minimum number of
+individuals in each of the populations (rather than overall proportion of
+individuals). This can help to guarantee a minimum number of individuals to
+calculate population-based statistics, and eliminate loci that might be
+suffering from locus drop-out in particular populations. Note: only
+individuals that are listed in popfile are taken into account to determine
+number of individuals genotyped (but all indivs are outputted).
+
+	usage: vcf_minrep_filter_abs.py [-h]
+	                            vcf_file pop_file min_proportion
+	                            output_filename
 	
+	positional arguments:
+	  vcf_file         input file with SNP data (`.vcf`)
+	  pop_file         text file (tsv or csv) with individuals and populations
+	  min_proportion   proportion of individuals required to be genotyped in each
+	                   population for a SNP to be included (e.g `0.8` for 80
+	                   percent of individuals)
+	  output_filename  name of output file (`.vcf`)
+	
+	optional arguments:
+	  -h, --help       show this help message and exit
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -366,7 +400,7 @@ vcf_filename as argument. Outputs to STDOUT (no output file).
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -380,7 +414,7 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -395,7 +429,7 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 	
 	optional arguments:
 	  -h, --help   show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -407,9 +441,9 @@ Note: `vcf` can subsequently be filtered by using the output as inclusion_file
 for `vcf_include_chrom.py`.
 
 	usage: vcf_reference_loci.py [-h]
-                             vcf_file
-                             [reference_samples [reference_samples ...]]
-
+	                         vcf_file
+	                         [reference_samples [reference_samples ...]]
+	
 	positional arguments:
 	  vcf_file           input file with SNP data (`.vcf`)
 	  reference_samples  sample(s) against which the remainder of the dataset will
@@ -417,7 +451,7 @@ for `vcf_include_chrom.py`.
 	
 	optional arguments:
 	  -h, --help         show this help message and exit
-	
+
 
 
 
@@ -438,9 +472,50 @@ reads (flag 16).
 	
 	optional arguments:
 	  -h, --help    show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
+
+
+**[vcf_remap2genome.py](vcf_remap2genome.py)** - Remap VCF to genome. * Currently only works with single-line FASTA files (but
+easy to change) * Works best when using the optional alignment output in
+sam2tsv
+
+	usage: vcf_remap2genome.py [-h] [-v vcf_file] [-f fasta_file] [-t samtsv_file]
+	                       [-o output_vcf_file] [-pid pid_threshold]
+	
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        original vcf file, where the CHROM correspond to the
+	                        sequence name in the supplied fasta (perfect match),
+	                        and the POS the position within that sequence (also
+	                        counting gaps if present).
+	  -f fasta_file, --fasta fasta_file
+	                        fasta file representing a single sequence for each
+	                        locus/CHROM in the original vcf (including gaps if
+	                        present in the original aligment that the fasta is
+	                        based on). Note that these gaps need to be removed
+	                        before mapping these sequences back to the genome with
+	                        bwa mem, but need to be present in this file.
+	  -t samtsv_file, --t samtsv_file
+	                        The sam file converted to tsv. The sam file represents
+	                        the mapping outcome of the supplied fasta (but then
+	                        without gaps) to the genome with bwa mem, e.g.
+	                        through: bwa mem ref_genome fasta_file_no_gaps.fa >
+	                        samfile.sam. This samfile then needs to be converted
+	                        to a tsv, using sam2tsv from the jVarKit toolkit
+	                        (http://lindenb.github.io/jvarkit/Sam2Tsv.html).
+	  -o output_vcf_file, --output_vcf output_vcf_file
+	                        remapped vcf file with genome scaffold/chroms and
+	                        positions within those scaffold/chroms.
+	  -pid pid_threshold, --pid pid_threshold
+	                        optional pid alignment threshold, to exclude loci
+	                        aligning to the genome with a percent id (PID) score
+	                        below the indicated value.
+
+
+
 
 
 **[vcf_remove_chrom.py](vcf_remove_chrom.py)** - Excludes those loci (/CHROMs) in `.vcf` that are listed in exclusion list.
@@ -454,7 +529,7 @@ Also outputs a logfile with loci that were listed but not present in `.vcf`.
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [exclusion_file.txt](input_examples/exclusion_file.txt).
 
@@ -471,13 +546,13 @@ outputs those loci that are listed.
 	
 	optional arguments:
 	  -h, --help       show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [locusnames_file.txt](input_examples/locusnames_file.txt).
 
 
 **[vcf_rename_samples.py](vcf_rename_samples.py)** - Renames sample in `.vcf` file according to list with old/new names; also
-outputs samples that are not listed in name_change file.
+outputs samples that are not listed in name_change file. *[File did not pass PEP8 check]*
 
 	usage: vcf_rename_samples.py [-h] vcf_file samplenames_file
 
@@ -488,7 +563,7 @@ outputs samples that are not listed in name_change file.
 	
 	optional arguments:
 	  -h, --help        show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [samplenames_file.txt](input_examples/samplenames_file.txt).
 
@@ -504,7 +579,7 @@ course still may be - particularly so when dealing with short loci)
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf).
 
@@ -523,7 +598,7 @@ terminal with `$ chmod +x vcf_spider.py`.
 	
 	optional arguments:
 	  -h, --help       show this help message and exit
-	
+
 
 
 
@@ -545,7 +620,7 @@ automatically generated from percentile bins.
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [fst_file.txt](input_examples/fst_file.txt).
 
@@ -565,7 +640,7 @@ outputs as FASTA (order by popfile). Note: missing data are filled with gaps
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -582,7 +657,7 @@ or `.allele` file.
 	optional arguments:
 	  -h, --help      show this help message and exit
 	  -a, --all_seqs  set flag to output all sequences
-	
+
 
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
 
@@ -599,7 +674,7 @@ file (not `.loci`).
 	
 	optional arguments:
 	  -h, --help   show this help message and exit
-	
+
 
 Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 
@@ -611,8 +686,8 @@ also be used for `.alleles` file but then 2x the number of samples should be
 given (assuming diploid individual).
 
 	usage: pyrad_filter.py [-h] [-e]
-                       pyrad_file loci_file sample_threshold snp_threshold
-
+	                   pyrad_file loci_file sample_threshold snp_threshold
+	
 	positional arguments:
 	  pyrad_file        PyRAD file (`.loci`)
 	  loci_file         text file with PyRAD loci to be included
@@ -623,7 +698,7 @@ given (assuming diploid individual).
 	optional arguments:
 	  -h, --help        show this help message and exit
 	  -e, --exclude     use the loci in loci_file as exclusion list
-	
+
 
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci_file.txt](input_examples/loci_file.txt).
 
@@ -632,9 +707,9 @@ Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci), [loci
 groups (or one group and all other samples).
 
 	usage: pyrad_find_caps_markers.py [-h] [-i pyrad_file] [-g group_file]
-                                  [-r re_site_file] [-g1 group1] [-g2 group2]
-                                  [-m min_samples] [-o output_folder]
-
+	                              [-r re_site_file] [-g1 group1] [-g2 group2]
+	                              [-m min_samples] [-o output_folder]
+	
 	optional arguments:
 	  -h, --help            show this help message and exit
 	  -i pyrad_file, --input pyrad_file
@@ -658,7 +733,7 @@ groups (or one group and all other samples).
 	  -o output_folder, --output output_folder
 	                        name of output folder for individual seqs of each
 	                        diagnostic locus
-	
+
 
 
 
@@ -673,7 +748,7 @@ groups (or one group and all other samples).
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [pyrad_file.loci](input_examples/pyrad_file.loci).
 
@@ -693,7 +768,7 @@ number of clusters to STDOUT.
 	
 	optional arguments:
 	  -h, --help         show this help message and exit
-	
+
 
 
 
@@ -717,7 +792,7 @@ doing the actual renaming.
 	
 	optional arguments:
 	  -h, --help    show this help message and exit
-	
+
 
 
 
@@ -730,9 +805,9 @@ files (use this to append data from multiple samples). BWA needs to be
 installed and accessible through `PATH` environmental variable.
 
 	usage: fastq_bin_paired_reads.py [-h]
-                                 r1_fastq_file r2_fastq_file ref_fasta_file
-                                 threads output_folder
-
+	                             r1_fastq_file r2_fastq_file ref_fasta_file
+	                             threads output_folder
+	
 	positional arguments:
 	  r1_fastq_file   file in FASTQ format with R1 reads
 	  r2_fastq_file   file in FASTQ format with R2 reads
@@ -742,7 +817,7 @@ installed and accessible through `PATH` environmental variable.
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 
 
@@ -760,7 +835,7 @@ constant.
 	
 	optional arguments:
 	  -h, --help       show this help message and exit
-	
+
 
 
 
@@ -788,7 +863,7 @@ bitscore`.
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [blastn_file.txt](input_examples/blastn_file.txt).
 
@@ -805,7 +880,7 @@ mapping quality of >=20. Configured for use with single-end reads. *[File did no
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [sam_file.sam](input_examples/sam_file.sam).
 
@@ -832,7 +907,7 @@ qseqid sseqid length nident pident evalue bitscore staxids stitle`.
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [blastn_file.txt](input_examples/blastn_file.txt).
 
@@ -845,18 +920,22 @@ outputs a popfile based on those assigments (using supplied assignment
 threshold). Note: I use the formatted CLUMPP output (e.g. `clumpp_K4.out.csv`)
 from the `structure_mp` wrapper as assignment file.
 
-	usage: popfile_from_clusters.py [-h] assignment_file assign_cut_off
-
+	usage: popfile_from_clusters.py [-h] [-p pop_filename]
+	                            assignment_file assign_cut_off
+	
 	positional arguments:
-	  assignment_file  text file (tsv or csv) with assignment values for each
-	                   individual (max. 2 clusters); e.g. a reformatted STRUCTURE
-	                   output file
-	  assign_cut_off   min. assignment value for an individual to be assigned to a
-	                   cluster
+	  assignment_file       text file (tsv or csv) with assignment values for each
+	                        individual (max. 2 clusters); e.g. a reformatted
+	                        STRUCTURE output file
+	  assign_cut_off        min. assignment value for an individual to be assigned
+	                        to a cluster
 	
 	optional arguments:
-	  -h, --help       show this help message and exit
-	
+	  -h, --help            show this help message and exit
+	  -p pop_filename, --popfile pop_filename
+	                        optional popfile: use original popnames as assignment
+	                        prefix
+
 
 Example input file(s):  [assignment_file.csv](input_examples/assignment_file.csv).
 
@@ -873,7 +952,7 @@ original popfile should be ordered by population.
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 
@@ -890,13 +969,35 @@ when using random assignment under originally small population sizes).
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 
 
 
 ## other
+
+**[bwa_distance_filter.py](bwa_distance_filter.py)** - Filters list of loci mapped to genome scaffolds, so that they are spaced at
+least a certain distance. Input file should be tab-separated with columns in
+the following order (no header): rad_locus, ref_scaffold, ref_start_pos, flag.
+Required spacing between POS will be spacing + max_locus_length. *[File did not pass PEP8 check]*
+
+	usage: bwa_distance_filter.py [-h] [-l loci_file]
+	                          filename spacing max_locus_length
+	
+	positional arguments:
+	  filename              input file
+	  spacing               desired spacing between loci
+	  max_locus_length      max. length of loci
+	
+	optional arguments:
+	  -h, --help            show this help message and exit
+	  -l loci_file, --loci loci_file
+	                        file with loci to be considered
+
+
+
+
 
 **[fasta_exclude.py](fasta_exclude.py)** - Reduces FASTA file to those loci not listed in supplied text file.
 
@@ -908,7 +1009,7 @@ Example input file(s):  [pop_file.txt](input_examples/pop_file.txt).
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [exclusion_file.txt](input_examples/exclusion_file.txt).
 
@@ -923,13 +1024,13 @@ Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [exclusio
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 Example input file(s):  [fasta_file.fa](input_examples/fasta_file.fa), [inclusion_file.txt](input_examples/inclusion_file.txt).
 
 
-**[gdmatrix2tree.py](gdmatrix2tree.py)** - Creates UPGMA tree from a genetic distance matrix. Outputs ASCII format to
-STDOUT and a nexus-formatted tree to output file. Note: distance matrix can be
+**[gdmatrix2tree.py](gdmatrix2tree.py)** - Creates NJ tree from a genetic distance matrix. Outputs ASCII format to STDOUT
+and a nexus-formatted tree to output file. Note: distance matrix can be
 created from `vcf` using `vcf_gdmatrix.py`.
 
 	usage: gdmatrix2tree.py [-h] matrix_file tree_output_file
@@ -940,9 +1041,39 @@ created from `vcf` using `vcf_gdmatrix.py`.
 	
 	optional arguments:
 	  -h, --help        show this help message and exit
-	
+
 
 Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
+
+
+**[itertools_combinations.py](itertools_combinations.py)** - Generate list with all unique pairwise combinations of values in file. Short
+script meant to allow use of itertools.combinations in bash.
+
+	usage: itertools_combinations.py [-h] filename
+
+	positional arguments:
+	  filename    input file with values
+	
+	optional arguments:
+	  -h, --help  show this help message and exit
+
+
+
+
+
+**[nexus_append_label_groups.py](nexus_append_label_groups.py)** - Appends group to each label in a NEXUS tree file. *[File did not pass PEP8 check]*
+
+	usage: nexus_append_label_groups.py [-h] nexus_filename group_filename
+
+	positional arguments:
+	  nexus_filename  nexus input file)
+	  group_filename  file with samples and corresponding groups
+	
+	optional arguments:
+	  -h, --help      show this help message and exit
+
+
+
 
 
 **[nexus_set_label_colors.py](nexus_set_label_colors.py)** - Set the color of each label in a NEXUS tree file.
@@ -955,7 +1086,7 @@ Example input file(s):  [matrix_file.txt](input_examples/matrix_file.txt).
 	
 	optional arguments:
 	  -h, --help      show this help message and exit
-	
+
 
 
 
@@ -969,7 +1100,7 @@ are assigned based on argument names.
 
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 
 
@@ -999,7 +1130,7 @@ does not need to be supplied. *[File did not pass PEP8 check]*
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
-	
+
 
 Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.txt](input_examples/pop_file.txt).
 
@@ -1017,7 +1148,7 @@ Example input file(s):  [vcf_file.vcf](input_examples/vcf_file.vcf), [pop_file.t
 	                        optional file specifying the output order of samples
 	  -p, --popnames        set flag to output population names
 	  -c, --clumpp_only     set flag to only plot CLUMPP summary
-	
+
 
 
 

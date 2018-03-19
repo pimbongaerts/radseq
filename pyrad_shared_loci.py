@@ -12,22 +12,22 @@ __license__ = 'GPL'
 
 def get_loci_for_samples(loci_filename):
   """ Obtain genotyped loci for each sample """
-    sample_loci = {}
-    temp_sample_list = []
-    loci_file = open(loci_filename, 'r')
-    for line in loci_file:
-      if line[0] == '/':
-        locus = line.split('|')[1]
-        for sample in temp_sample_list:
-          if sample not in sample_loci:
-            sample_loci[sample] = []
-          sample_loci[sample].append(locus)
-        temp_sample_list.clear()
-      else:
-        sample = line.split()[0]
-        temp_sample_list.append(sample)
-    loci_file.close()
-    return sample_loci
+  sample_loci = {}
+  temp_sample_list = []
+  loci_file = open(loci_filename, 'r')
+  for line in loci_file:
+    if line[0] == '/':
+      locus = line.split('|')[1]
+      for sample in temp_sample_list:
+        if sample not in sample_loci:
+          sample_loci[sample] = []
+        sample_loci[sample].append(locus)
+      temp_sample_list.clear()
+    else:
+      sample = line.split()[0]
+      temp_sample_list.append(sample)
+  loci_file.close()
+  return sample_loci
 
 def main(loci_filename):
     # Obtain genotyped loci for each sample

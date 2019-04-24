@@ -16,7 +16,7 @@ __license__ = 'GPL'
 
 CONSIDERED_CHARS = ['A', 'C', 'G', 'T']
 UNASSIGNED = 'unassigned'
-OTHER_SAMPLES = '#other_samples'
+OTHER_SAMPLES = '#others'
 OUTPUT_HIGHLIGHT_START = '\x1b[6;30;42m'
 OUTPUT_HIGHLIGHT_END = '\x1b[0m'
 
@@ -166,7 +166,7 @@ class SeqGroups(object):
                              group2_cons_seq, rs_pos_combined):
         """ Format successful CAPS match lines for printing to stdout """
         caps_result = []
-        group1_seq_count = len(self.group1_seqs)
+        group1_seq_count = len(self.group1_seq)
         group2_seq_count = len(self.group2_seqs)
 
         caps_result.append(self.__format_caps_header(self.locus_name,

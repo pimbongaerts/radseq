@@ -9,47 +9,51 @@ import argparse
 import random
 
 __author__ = 'Pim Bongaerts'
-__copyright__ = 'Copyright (C) 2016 Pim Bongaerts'
+__copyright__ = 'Copyright (C) 2016-18 Pim Bongaerts'
 __license__ = 'GPL'
 
 
 HEADER_CHAR = "#"
+COL_CHROM = 0
+COL_POS = 1
 
 
-def main(vcf_filename):
+def main(vcf_filename, distance_threshold):
+    temp_SNPs = []; previous_CHROM = ''; previous_POS = -1
+
     input_file = open(vcf_filename, 'r')
-
-    total_count = chrom_count = 0
-    previous_chrom = ''
-    lines_for_chrom = []
-
     for line in input_file:
-        # NOTE: if only wanting to use a substring of the chrom name, split on
-        # different delimiting character, e.g.: cols = line.split('_')
-        cols = line.split()
-        chrom = cols[0]
-
-        # Output headers to output file
         if line[0] == HEADER_CHAR:
             print('{0}'.format(line), end='')
         else:
-            # Output random SNP when reaching new chrom
-            if len(lines_for_chrom) > 0 and chrom != previous_chrom:
-                random_line_no = random.randint(0, len(lines_for_chrom) - 1)
-                random_line = lines_for_chrom[random_line_no]
-                print('{0}'.format(random_line), end='')
-                chrom_count += 1
-                lines_for_chrom = []
+            cols = line.split()
+            current_CHROM = cols[COL_CHROM]
+            current_POS = int(cols[COL_POS])
 
-            lines_for_chrom.append(line)
-            total_count += 1
-        previous_chrom = chrom
-
+            if (previous_CHROM not in ('', current_CHROM) or 
+               (previous_POS != -1 and
+                  current_POS >= (previous_POS + distance_threshold))):
+                # When reaching new CHROM or a position >= than 
+                # DISTANCE_THRESHOLD away from previous POS:
+                # select one random SNP from list for each replicate
+                print(temp_SNPs[random.randint(0, len(temp_SNPs) - 1)])
+                temp_SNPs = []
+            # Generate list of all SNPs in CHROM/block
+            temp_SNPs.append(line.rstrip())
+            previous_CHROM = current_CHROM
+            previous_POS = current_POS
+    
     input_file.close()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('vcf_filename', metavar='vcf_file',
                         help='input file with SNP data (`.vcf`)')
+    parser.add_argument('-d', '--distance', dest='distance_threshold',
+                        metavar='distance_threshold',
+                        default = 2500,
+                        help='optional custom distance threshold between SNPs \
+                              (default is 2500; not relevant for short \
+                              de-novo loci not mapped to reference scaffolds)')
     args = parser.parse_args()
-    main(args.vcf_filename)
+    main(args.vcf_filename, int(args.distance_threshold))

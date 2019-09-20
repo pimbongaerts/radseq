@@ -68,17 +68,25 @@ def prop_of_overall_genotyped(record, pops_indivs):
 
 def main(vcf_filename, pop_filename, threshold, output_filename):
     # Read list of indvs and population assignments from popfile
+    print('Reading popfile {0}...'.format(pop_filename))
     pops_indivs = dict_from_popfile(pop_filename)
 
     # Iterate through loci and output only those that meet the minimum number
     # of samples genotyped for each population in pop_filename
+    print('Opening vcf {0}...'.format(vcf_filename))
     vcf_reader = vcf.Reader(open(vcf_filename, 'r'))
     snps_failing_threshold = []
     min_overall_genotyped = 1.0
     overall_snp_count = 0
+    previous_CHROM = ''
+    print('Evaluating SNPs in vcf...')
     for record in vcf_reader:
         failing_snp = False
         overall_snp_count += 1
+        # Send current CHROM to stdout for progress update
+        if record.CHROM != previous_CHROM:
+            print(record.CHROM)
+            previous_CHROM = record.CHROM
         # Assess all pops until pop is reached that fails threshold
         for pop in pops_indivs:
             if num_in_pop_genotyped(record, pops_indivs[pop]) < threshold:

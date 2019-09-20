@@ -182,6 +182,7 @@ class Subgroup(object):
                                                vcf_record.POS))
         elif len(unique_alleles) > 2:
             # Error - SNP has more than 2 alleles'
+            print(unique_alleles)
             sys.exit('More than 2 alleles for subgroup {0}'
                      ' and SNP {1}:{2}'.format(self.name, 
                                                vcf_record.CHROM,

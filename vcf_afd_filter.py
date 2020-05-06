@@ -168,7 +168,7 @@ class Subgroup(object):
         # Extract all alleles from genotypes
         for sample in self.samples:
             genotype = vcf_record.genotype(sample)['GT']
-            if genotype:
+            if genotype and genotype[0] != '.':
                 alleles.append(genotype[0])
                 alleles.append(genotype[2])
         # Extract data from list of alleles
@@ -183,9 +183,10 @@ class Subgroup(object):
         elif len(unique_alleles) > 2:
             # Error - SNP has more than 2 alleles'
             sys.exit('More than 2 alleles for subgroup {0}'
-                     ' and SNP {1}:{2}'.format(self.name, 
+                     ' and SNP {1}:{2} ({3})'.format(self.name, 
                                                vcf_record.CHROM,
-                                               vcf_record.POS))
+                                               vcf_record.POS,
+                                               unique_alleles))
         else:
             self.aaf = float(cat_alleles.count('1') / len(cat_alleles))
             self.aac = '{0} of {1}'.format(cat_alleles.count('1'), 

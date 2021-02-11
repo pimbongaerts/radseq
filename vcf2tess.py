@@ -39,6 +39,8 @@ def get_tess_genotype(vcf_genotype):
     """ Convert VCF to outflank genotype """
     if not vcf_genotype:
         return MISSING
+    elif vcf_genotype[0] == '.' and vcf_genotype[2] == '.':
+        return MISSING
     elif vcf_genotype[0] == '0' and vcf_genotype[2] == '0':
         return HOMOZYGOTE_REF
     elif vcf_genotype[0] == '0' and vcf_genotype[2] == '1':

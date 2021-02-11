@@ -16,7 +16,7 @@ __copyright__ = 'Copyright (C) 2016 Pim Bongaerts'
 __license__ = 'GPL'
 
 
-PGDSPIDER_PATH = '/Users/pim/programs/PGDSpider2-cli.jar'
+PGDSPIDER_PATH = '/Users/pbongaerts/tools/PGDSpider_2.1.1.5/PGDSpider2-cli.jar'
 PLOIDY = 'DIPLOID'
 
 EXT_STRUCTURE = '.structure'

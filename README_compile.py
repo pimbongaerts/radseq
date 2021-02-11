@@ -35,7 +35,7 @@ def get_python_help_message(filename):
 
 def check_PEP8_compliance(filename):
     """ Capture help mesage of python script """
-    pep8_output = subprocess.Popen(['pep8', filename, ],
+    pep8_output = subprocess.Popen(['pycodestyle', filename, ],
                                    stdout=subprocess.PIPE).communicate()[0]
     if pep8_output.decode("utf-8") == '':
         return ''

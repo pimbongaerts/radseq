@@ -37,7 +37,7 @@ def dict_from_popfile(pop_filename):
 
 
 def num_in_pop_genotyped(record, indvs):
-    """ Calculate proportion of indivs genotyped in pop for current SNP """
+    """ Count number of indivs genotyped in pop for current SNP """
     count_genotyped = count_missing = 0
     for indiv in indvs:
         vcf_genotype = record.genotype(indiv)['GT']
@@ -83,9 +83,7 @@ def main(vcf_filename, pop_filename, threshold, output_filename):
     for record in vcf_reader:
         failing_snp = False
         overall_snp_count += 1
-        # Send current CHROM to stdout for progress update
         if record.CHROM != previous_CHROM:
-            print(record.CHROM)
             previous_CHROM = record.CHROM
         # Assess all pops until pop is reached that fails threshold
         for pop in pops_indivs:

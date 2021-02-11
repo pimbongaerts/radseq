@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 """
-Reduces pyrad file to only those samples listed in supplied text file.
-Only works with old pyrad format.
+Reduces ipyrad file to only those samples listed in supplied text file.
 """
 import sys
 import argparse
@@ -17,14 +16,13 @@ def main(loci_filename, list_filename, min_samples):
         lines = [line.strip() for line in file]
     samples = set(lines)
 
-    # Parse FASTA and only output those in set
     loci_file = open(loci_filename, 'r')
     seqs_to_output = []
 
     for line in loci_file:
-        if line[0] == '>':
+        if line[0] != '/':
             # Evaluate if sample in list of samples
-            if line[1:].split()[0] in samples:
+            if line.split()[0] in samples:
                 seqs_to_output.append(line.strip())
         elif line[0] == '/' and len(seqs_to_output) >= int(min_samples):
             # Output locus info if sequences were outputted

@@ -33,6 +33,7 @@ __license__ = "GPL"
 
 GENOTYPE_CONVERSION = {'A': '10', 'T': '11', 'G': '12', 'C': '13', '.': '-9'}
 STRUCTURE_ANCESTRY_HEADER = 'Inferred ancestry of individuals:'
+DISTANCE_THRESHOLD = 2500
 
 
 def print_msg(msg):
@@ -61,11 +62,15 @@ def select_random_snps(vcf_filename, replicates_IDs):
     # Iterate through all SNPs in VCF
     temp_SNPs = []
     previous_CHROM = ''
+    previous_POS = -1
     vcf_reader = vcf.Reader(open(vcf_filename, 'r'))
     for record in vcf_reader:
-        if previous_CHROM not in ('', record.CHROM):
-            # When reaching new CHROM: select one random SNP from list
-            # for each replicate
+        if (previous_CHROM not in ('', record.CHROM) or 
+            (previous_POS != -1 and
+             record.POS > (previous_POS + DISTANCE_THRESHOLD))):
+            # When reaching new CHROM or a position more than 
+            # DISTANCE_THRESHOLD away from previous POS:
+            # select one random SNP from list for each replicate
             for replicate in replicates_IDs:
                 random_snp = temp_SNPs[random.randint(0, len(temp_SNPs) - 1)]
                 selected_snps[replicate].append(random_snp)
@@ -73,6 +78,7 @@ def select_random_snps(vcf_filename, replicates_IDs):
         # Generate list of all SNPs in CHROM
         temp_SNPs.append('{0}_{1}'.format(record.CHROM, record.POS))
         previous_CHROM = record.CHROM
+        previous_POS = record.POS
     return selected_snps
 
 

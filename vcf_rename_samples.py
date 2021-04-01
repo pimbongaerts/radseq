@@ -38,7 +38,8 @@ def main(vcf_filename, samplenames_filename):
             # Rename each sample in line
             for old_name, new_name in name_changes.items():
                 if old_name in line:
-                    line = line.replace(old_name, new_name)
+                    line = line.replace(old_name + '\t', new_name + '\t')
+                    line = line.replace(old_name + '\n', new_name + '\n')
                 else:
                     log_file.write('Cannot find sample: {0}\n'.format(old_name))
         print(line, end='')

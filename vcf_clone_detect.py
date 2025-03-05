@@ -49,11 +49,11 @@ C_POP = 'pop'
 
 COMPARISONS_DTYPES = [(C_IND1, np.str_, IND_STR_LEN),
                       (C_IND2, np.str_, IND_STR_LEN),
-                      (C_IND1_SNPS, np.int),
-                      (C_IND2_SNPS, np.int),
-                      (C_BOTH_SNPS, np.int),
-                      (C_MATCH, np.float),
-                      (C_MATCH_PERC, np.float),
+                      (C_IND1_SNPS, np.int64),
+                      (C_IND2_SNPS, np.int64),
+                      (C_BOTH_SNPS, np.int64),
+                      (C_MATCH, np.float64),
+                      (C_MATCH_PERC, np.float64),
                       (C_POP, np.str_, POP_STR_LEN)]
 
 OUTPUT_FILE_DELIM = ','

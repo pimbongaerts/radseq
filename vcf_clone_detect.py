@@ -154,7 +154,7 @@ def get_genotypes_from_vcf(vcf_filename):
 def get_match_info_as_row(individual1, genotypes1,
                           individual2, genotypes2, indivs_pops):
     """ Get match value for two genotypes (one SNP) """
-    ind1_snps = ind2_snps = both_snps = match = total_snps = 0
+    ind1_snps = ind2_snps = both_snps = match = 0
     for x in range(0, len(genotypes1)):
         genotype1 = genotypes1[x][:3]
         genotype2 = genotypes2[x][:3]
@@ -163,10 +163,14 @@ def get_match_info_as_row(individual1, genotypes1,
             ind2_snps += 1
             both_snps += 1
             match += get_snp_match(genotype1, genotype2)
-        elif genotype2[0] == '.':  # genotype of ind2 missing
+        elif genotype1[0] != '.' and genotype2[0] == '.':  # genotype of ind2 missing
             ind1_snps += 1
-        elif genotype1[0] == '.':  # genotype of ind1 missing
+        elif genotype1[0] == '.' and genotype2[0] != '.':  # genotype of ind1 missing
             ind2_snps += 1
+        elif genotype1[0] == '.' and genotype2[0] == '.':   # both missing
+            pass # do nothing
+        else:
+            sys.exit('Unexpected genotype: {0} {1}'.format(genotype1, genotype2))
 
     match_perc = round((match / both_snps) * 100, 2)
 

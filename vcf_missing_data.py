@@ -19,7 +19,7 @@ MISSING_CHAR = "."
 OUTPUT_HEADER = 'INDIVIDUAL\tMISS\tGENO\tTOTAL\t% GENOTYPED'
 
 
-def main(vcf_filename):
+def main(vcf_filename, lowest_n=None, threshold=None):
     # Read in genotypes for all individuals
     individuals = {}
     genotypes = {}
@@ -44,7 +44,7 @@ def main(vcf_filename):
                         genotypes[individual].append(genotype[0:3])
 
     # Assess missing data for each individual
-    print(OUTPUT_HEADER)
+    records = []
     for individual in sorted(genotypes.keys()):
         # A genotype is counted as missing if either allele is missing
         # (e.g. `./.` or partial calls such as `./0`)
@@ -56,13 +56,44 @@ def main(vcf_filename):
             perc_count = round((genotyped_count / total_count) * 100, 2)
         else:
             perc_count = 'NA'
-        print('{0}\t{1}\t{2}\t{3}\t{4}'.format(individual, missing_count,
-                                               genotyped_count, total_count,
-                                               perc_count))
+        records.append((individual, missing_count, genotyped_count,
+                        total_count, perc_count))
+
+    # Numeric sort key for % genotyped; samples with no loci ('NA') rank lowest
+    def perc_key(record):
+        return float('-inf') if record[4] == 'NA' else record[4]
+
+    # If requested, only keep samples below the threshold (% genotyped)
+    if threshold is not None:
+        records = [record for record in records if perc_key(record) < threshold]
+
+    # Sort by % genotyped ascending (worst-performing samples first) when
+    # limiting to the n lowest or producing a threshold-based remove list
+    if lowest_n is not None or threshold is not None:
+        records.sort(key=perc_key)
+    if lowest_n is not None:
+        records = records[:lowest_n]
+
+    # Output results
+    if threshold is not None:
+        # Bare sample names (no header) for use as a vcftools --remove file
+        for record in records:
+            print(record[0])
+    else:
+        print(OUTPUT_HEADER)
+        for record in records:
+            print('{0}\t{1}\t{2}\t{3}\t{4}'.format(*record))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('vcf_filename', metavar='vcf_file',
                         help='input file with SNP data (`.vcf`)')
+    parser.add_argument('-n', type=int, default=None, metavar='N',
+                        help='only output the N lowest records (by %% '
+                             'genotyped), i.e. the worst-performing samples')
+    parser.add_argument('-t', type=float, default=None, metavar='THRESHOLD',
+                        help='only output names of samples below this %% '
+                             'genotyped threshold, one per line and without '
+                             'header (e.g. for a vcftools `--remove` file)')
     args = parser.parse_args()
-    main(args.vcf_filename)
+    main(args.vcf_filename, args.n, args.t)

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """
 Wrapper that runs `vcf_missing_data.py` on every `.vcf` file found in a
-directory and its subdirectories (defaults to the folder containing this
-script). By default only the 10 worst-performing samples are shown per file.
+directory and its subdirectories (defaults to the current working directory).
+By default only the 10 worst-performing samples are shown per file.
 
 Output is printed to STDOUT, grouped per VCF file.
 """
@@ -42,9 +42,9 @@ def main(directory, lowest_n, threshold):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('directory', metavar='directory', nargs='?',
-                        default=os.path.dirname(os.path.abspath(__file__)),
+                        default=os.getcwd(),
                         help='directory to search for `.vcf` files '
-                             '(default: folder containing this script)')
+                             '(default: current working directory)')
     parser.add_argument('-n', type=int, default=None, metavar='N',
                         help='only output the N lowest records (by %% '
                              'genotyped) per file (default: {0}; ignored when '

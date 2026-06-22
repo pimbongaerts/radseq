@@ -23,36 +23,39 @@ def main(vcf_filename):
     # Read in genotypes for all individuals
     individuals = {}
     genotypes = {}
-    vcf_file = open(vcf_filename, 'r')
-    for line in vcf_file:
-        line = line.strip()
-        if line[0:len(HEADER_INDIVIDUALS)] == HEADER_INDIVIDUALS:
-            cols = line.split('\t')
-            # Store individual names with col_index as key
-            for col_index, col in enumerate(cols):
-                if col_index >= 9:
-                    individual_name = col
-                    individuals[col_index] = individual_name
-                    genotypes[individual_name] = []
-        elif not line[0:len(HEADER_CHAR)] == HEADER_CHAR:
-            cols = line.split('\t')
-            # Store genotypes for each individual
-            for col_index, col in enumerate(cols):
-                if col_index >= 9:
-                    genotype = col
-                    individual = individuals[col_index]
-                    genotypes[individual].append(genotype[0:3])
-    vcf_file.close()
+    with open(vcf_filename, 'r') as vcf_file:
+        for line in vcf_file:
+            line = line.strip()
+            if line[0:len(HEADER_INDIVIDUALS)] == HEADER_INDIVIDUALS:
+                cols = line.split('\t')
+                # Store individual names with col_index as key
+                for col_index, col in enumerate(cols):
+                    if col_index >= 9:
+                        individual_name = col
+                        individuals[col_index] = individual_name
+                        genotypes[individual_name] = []
+            elif not line[0:len(HEADER_CHAR)] == HEADER_CHAR:
+                cols = line.split('\t')
+                # Store genotypes for each individual
+                for col_index, col in enumerate(cols):
+                    if col_index >= 9:
+                        genotype = col
+                        individual = individuals[col_index]
+                        genotypes[individual].append(genotype[0:3])
 
     # Assess missing data for each individual
     print(OUTPUT_HEADER)
-    missing_data = []
     for individual in sorted(genotypes.keys()):
-        genotypes_concat = ''.join(genotypes[individual])
-        missing_count = int(genotypes_concat.count(MISSING_CHAR) / 2)
-        total_count = int(len(genotypes_concat) / 3)
+        # A genotype is counted as missing if either allele is missing
+        # (e.g. `./.` or partial calls such as `./0`)
+        missing_count = sum(1 for genotype in genotypes[individual]
+                            if MISSING_CHAR in genotype)
+        total_count = len(genotypes[individual])
         genotyped_count = total_count - missing_count
-        perc_count = round((genotyped_count / total_count) * 100, 2)
+        if total_count > 0:
+            perc_count = round((genotyped_count / total_count) * 100, 2)
+        else:
+            perc_count = 'NA'
         print('{0}\t{1}\t{2}\t{3}\t{4}'.format(individual, missing_count,
                                                genotyped_count, total_count,
                                                perc_count))

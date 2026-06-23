@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 """
 Creates NJ tree from a genetic distance matrix. Outputs ASCII format to
-STDOUT and a nexus-formatted tree to output file. Note: distance matrix can
-be created from `vcf` using `vcf_gdmatrix.py`.
+STDOUT, a nexus-formatted tree to output file, and a PDF visualization of the
+tree (same name as the output file but with a `.pdf` extension). Note:
+distance matrix can be created from `vcf` using `vcf_gdmatrix.py`.
 """
 import sys
+import os
 import argparse
 import numpy as np
 import Bio.Phylo
 import Bio.Phylo.TreeConstruction
+import tre2pdf
 
 __author__ = 'Pim Bongaerts'
 __copyright__ = 'Copyright (C) 2016 Pim Bongaerts'
@@ -43,6 +46,11 @@ def main(matrix_filename, tree_output_filename):
     # Output to screen
     Bio.Phylo.draw_ascii(tree)
     Bio.Phylo.write(tree, tree_output_filename, 'nexus')
+
+    # Output PDF visualization (same name as tree file but with .pdf extension)
+    pdf_output_filename = os.path.splitext(tree_output_filename)[0] + '.pdf'
+    tre2pdf.main(tree_output_filename, output_filename=pdf_output_filename,
+                 tree_format='nexus')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)

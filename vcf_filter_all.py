@@ -41,11 +41,13 @@ def find_vcf_files(directory):
     return sorted(glob.glob(pattern, recursive=True))
 
 
-def filter_vcf(vcf_filename, remove_filename, output_filename, max_missing):
+def filter_vcf(vcf_filename, remove_filename, output_filename, max_missing,
+               dry_run=False):
     """Run vcftools to remove individuals and apply allele-based filters.
 
     The allele filters (--min-alleles, --mac) and --max-missing are computed by
     vcftools over the retained individuals only, i.e. after the --remove step.
+    When `dry_run` is True the vcftools command is printed instead of executed.
     """
     cmd = [VCFTOOLS_CMD,
            '--vcf', vcf_filename,
@@ -56,14 +58,18 @@ def filter_vcf(vcf_filename, remove_filename, output_filename, max_missing):
         cmd += ['--max-missing', str(max_missing)]
     cmd += ['--recode', '--recode-INFO-all', '--stdout']
 
+    if dry_run:
+        print('{0} > {1}'.format(' '.join(cmd), output_filename))
+        return True
+
     with open(output_filename, 'w') as output_file:
         result = subprocess.run(cmd, stdout=output_file, stderr=sys.stderr)
     return result.returncode == 0
 
 
-def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX):
-    # Ensure vcftools is available
-    if shutil.which(VCFTOOLS_CMD) is None:
+def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX, dry_run=False):
+    # Ensure vcftools is available (not required for a dry run)
+    if not dry_run and shutil.which(VCFTOOLS_CMD) is None:
         sys.exit('Error: `{0}` not found in PATH'.format(VCFTOOLS_CMD))
 
     vcf_files = find_vcf_files(directory)
@@ -81,10 +87,11 @@ def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX):
             continue
 
         output_filename = base + postfix + '.vcf'
-        sys.stderr.write('Filtering {0} -> {1}\n'.format(vcf_filename,
-                                                         output_filename))
+        if not dry_run:
+            sys.stderr.write('Filtering {0} -> {1}\n'.format(vcf_filename,
+                                                             output_filename))
         if filter_vcf(vcf_filename, remove_filename, output_filename,
-                      max_missing):
+                      max_missing, dry_run):
             filtered += 1
         else:
             failed += 1
@@ -94,8 +101,9 @@ def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX):
             if os.path.isfile(output_filename):
                 os.remove(output_filename)
 
-    sys.stderr.write('Filtered {0} file(s); skipped {1} without remove file; '
-                     '{2} failed\n'.format(filtered, skipped, failed))
+    verb = 'Would filter' if dry_run else 'Filtered'
+    sys.stderr.write('{0} {1} file(s); skipped {2} without remove file; '
+                     '{3} failed\n'.format(verb, filtered, skipped, failed))
 
 
 if __name__ == '__main__':
@@ -116,5 +124,8 @@ if __name__ == '__main__':
                              'e.g. `--postfix _2b` turns `STEPHANOCOENIA.vcf` '
                              'into `STEPHANOCOENIA_2b.vcf`'.format(
                                  DEFAULT_POSTFIX))
+    parser.add_argument('--dry-run', action='store_true',
+                        help='only print the vcftools commands that would be '
+                             'run (to STDOUT) without executing them')
     args = parser.parse_args()
-    main(args.directory, args.max_missing, args.postfix)
+    main(args.directory, args.max_missing, args.postfix, args.dry_run)

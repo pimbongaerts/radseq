@@ -7,6 +7,7 @@ Takes vcf_filename as argument. Outputs to STDOUT (no output file).
 
 """
 import sys
+import os
 import argparse
 
 __author__ = 'Pim Bongaerts'
@@ -17,9 +18,10 @@ HEADER_CHAR = "#"
 HEADER_INDIVIDUALS = "#CHROM"
 MISSING_CHAR = "."
 OUTPUT_HEADER = 'INDIVIDUAL\tMISS\tGENO\tTOTAL\t% GENOTYPED'
+OUTPUT_SUFFIX = '_samples_to_remove.txt'
 
 
-def main(vcf_filename, lowest_n=None, threshold=None):
+def main(vcf_filename, lowest_n=None, threshold=None, save_to_file=False):
     # Read in genotypes for all individuals
     individuals = {}
     genotypes = {}
@@ -74,15 +76,23 @@ def main(vcf_filename, lowest_n=None, threshold=None):
     if lowest_n is not None:
         records = records[:lowest_n]
 
-    # Output results
+    # Assemble output lines
     if threshold is not None:
         # Bare sample names (no header) for use as a vcftools --remove file
-        for record in records:
-            print(record[0])
+        output_lines = [record[0] for record in records]
     else:
-        print(OUTPUT_HEADER)
-        for record in records:
-            print('{0}\t{1}\t{2}\t{3}\t{4}'.format(*record))
+        output_lines = [OUTPUT_HEADER]
+        output_lines += ['{0}\t{1}\t{2}\t{3}\t{4}'.format(*record)
+                         for record in records]
+
+    # Output to STDOUT, or to a `<vcf_basename>_samples_to_remove.txt` file
+    if save_to_file:
+        output_filename = os.path.splitext(vcf_filename)[0] + OUTPUT_SUFFIX
+        with open(output_filename, 'w') as output_file:
+            output_file.write('\n'.join(output_lines) + '\n')
+        sys.stderr.write('Output written to {0}\n'.format(output_filename))
+    else:
+        print('\n'.join(output_lines))
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
@@ -95,5 +105,10 @@ if __name__ == '__main__':
                         help='only output names of samples below this %% '
                              'genotyped threshold, one per line and without '
                              'header (e.g. for a vcftools `--remove` file)')
+    parser.add_argument('-s', action='store_true',
+                        help='save output to a file named after the VCF with '
+                             '`{0}` appended (e.g. `STEPHANOCOENIA.vcf` -> '
+                             '`STEPHANOCOENIA{0}`) instead of writing to '
+                             'STDOUT'.format(OUTPUT_SUFFIX))
     args = parser.parse_args()
-    main(args.vcf_filename, args.n, args.t)
+    main(args.vcf_filename, args.n, args.t, args.s)

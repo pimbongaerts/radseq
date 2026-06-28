@@ -28,15 +28,19 @@ def find_vcf_files(directory):
     return sorted(glob.glob(pattern, recursive=True))
 
 
-def main(directory, lowest_n, threshold):
+def main(directory, lowest_n, threshold, save_to_file=False):
     vcf_files = find_vcf_files(directory)
     if not vcf_files:
         sys.exit('No `.vcf` files found in {0}'.format(directory))
 
     for vcf_filename in vcf_files:
-        print(FILE_HEADER.format(vcf_filename))
-        vcf_missing_data.main(vcf_filename, lowest_n, threshold)
-        print('')
+        # When saving, each VCF gets its own `_samples_to_remove.txt` file;
+        # otherwise output is printed to STDOUT grouped per file
+        if not save_to_file:
+            print(FILE_HEADER.format(vcf_filename))
+        vcf_missing_data.main(vcf_filename, lowest_n, threshold, save_to_file)
+        if not save_to_file:
+            print('')
 
 
 if __name__ == '__main__':
@@ -54,6 +58,10 @@ if __name__ == '__main__':
                         help='only output names of samples below this %% '
                              'genotyped threshold, one per line and without '
                              'header (e.g. for a vcftools `--remove` file)')
+    parser.add_argument('-s', action='store_true',
+                        help='for each VCF, save output to a file named after '
+                             'the VCF with `{0}` appended instead of writing '
+                             'to STDOUT'.format(vcf_missing_data.OUTPUT_SUFFIX))
     args = parser.parse_args()
     # Apply the default N only in the normal table view; when building a
     # threshold-based remove list, show all below-threshold samples unless
@@ -61,4 +69,4 @@ if __name__ == '__main__':
     lowest_n = args.n
     if lowest_n is None and args.t is None:
         lowest_n = DEFAULT_LOWEST_N
-    main(args.directory, lowest_n, args.t)
+    main(args.directory, lowest_n, args.t, args.s)

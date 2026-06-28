@@ -13,7 +13,9 @@ only the retained individuals, so the allele filters are inherently applied
 after the individual removal within the single command.
 
 For each input, output is written to `<base><postfix>.vcf` (default postfix
-`_filtered`), e.g. `STEPHANOCOENIA.vcf` -> `STEPHANOCOENIA_filtered.vcf`.
+`_filtered`), e.g. `STEPHANOCOENIA.vcf` -> `STEPHANOCOENIA_filtered.vcf`, with a
+matching `<base><postfix>.log` capturing vcftools' summary (number of
+individuals and sites kept).
 """
 import os
 import sys
@@ -41,13 +43,15 @@ def find_vcf_files(directory):
     return sorted(glob.glob(pattern, recursive=True))
 
 
-def filter_vcf(vcf_filename, remove_filename, output_filename, max_missing,
-               dry_run=False):
+def filter_vcf(vcf_filename, remove_filename, output_filename, log_filename,
+               max_missing, dry_run=False):
     """Run vcftools to remove individuals and apply allele-based filters.
 
     The allele filters (--min-alleles, --mac) and --max-missing are computed by
     vcftools over the retained individuals only, i.e. after the --remove step.
-    When `dry_run` is True the vcftools command is printed instead of executed.
+    vcftools' summary output (parameters and counts of individuals/sites kept)
+    is captured to `log_filename`. When `dry_run` is True the vcftools command
+    is printed instead of executed.
     """
     cmd = [VCFTOOLS_CMD,
            '--vcf', vcf_filename,
@@ -59,11 +63,13 @@ def filter_vcf(vcf_filename, remove_filename, output_filename, max_missing,
     cmd += ['--recode', '--recode-INFO-all', '--stdout']
 
     if dry_run:
-        print('{0} > {1}'.format(' '.join(cmd), output_filename))
+        print('{0} > {1} 2> {2}'.format(' '.join(cmd), output_filename,
+                                        log_filename))
         return True
 
-    with open(output_filename, 'w') as output_file:
-        result = subprocess.run(cmd, stdout=output_file, stderr=sys.stderr)
+    with open(output_filename, 'w') as output_file, \
+            open(log_filename, 'w') as log_file:
+        result = subprocess.run(cmd, stdout=output_file, stderr=log_file)
     return result.returncode == 0
 
 
@@ -87,17 +93,19 @@ def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX, dry_run=False):
             continue
 
         output_filename = base + postfix + '.vcf'
+        log_filename = base + postfix + '.log'
         if not dry_run:
             sys.stderr.write('Filtering {0} -> {1}\n'.format(vcf_filename,
                                                              output_filename))
         if filter_vcf(vcf_filename, remove_filename, output_filename,
-                      max_missing, dry_run):
+                      log_filename, max_missing, dry_run):
             filtered += 1
         else:
             failed += 1
-            sys.stderr.write('Error: vcftools failed on {0}\n'.format(
-                vcf_filename))
-            # Remove the (likely incomplete) output file
+            sys.stderr.write('Error: vcftools failed on {0} (see {1})\n'.format(
+                vcf_filename, log_filename))
+            # Remove the (likely incomplete) output VCF; keep the log for
+            # debugging
             if os.path.isfile(output_filename):
                 os.remove(output_filename)
 

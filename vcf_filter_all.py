@@ -35,12 +35,21 @@ VCFTOOLS_CMD = 'vcftools'
 DEFAULT_POSTFIX = '_filtered'
 MIN_ALLELES = '2'
 MIN_MAC = '2'
+SUMMARY_MARKER = 'After filtering'
 
 
 def find_vcf_files(directory):
     """Recursively find all `.vcf` files in directory and subdirectories"""
     pattern = os.path.join(directory, '**', VCF_PATTERN)
     return sorted(glob.glob(pattern, recursive=True))
+
+
+def get_summary_lines(log_filename):
+    """Extract the `After filtering` summary lines (individuals, sites) from a
+    vcftools log file"""
+    with open(log_filename, 'r') as log_file:
+        return [line.strip() for line in log_file
+                if line.startswith(SUMMARY_MARKER)]
 
 
 def filter_vcf(vcf_filename, remove_filename, output_filename, log_filename,
@@ -100,6 +109,10 @@ def main(directory, max_missing=None, postfix=DEFAULT_POSTFIX, dry_run=False):
         if filter_vcf(vcf_filename, remove_filename, output_filename,
                       log_filename, max_missing, dry_run):
             filtered += 1
+            # Report the vcftools summary (individuals kept, then sites kept)
+            if not dry_run:
+                for summary_line in get_summary_lines(log_filename):
+                    sys.stderr.write('  {0}\n'.format(summary_line))
         else:
             failed += 1
             sys.stderr.write('Error: vcftools failed on {0} (see {1})\n'.format(

@@ -21,10 +21,11 @@ remove" output of `vcf_clone_detect.py`).
 
 The script (1) computes pairwise genetic similarities (`--method`, default
 `ibs`; `dosage` is the documented alternative), (2) builds a UPGMA / average-
-linkage tree, (3) sweeps K = 2, 3, ... determining for each K the genetic-
-similarity cut-off that splits the tree into K groups and a separation gap,
-stopping once a clean split can no longer be made (or `--max-k` is reached),
-(4) assigns every genet to a cluster at each K, and (5) produces a multi-panel
+linkage tree, (3) evaluates K = 2 .. `--max-k`, reporting for each K the
+genetic-similarity cut-off that splits the tree into K groups, the merge-height
+separation gap, and the silhouette width, and picks the best K by silhouette
+(robust to between-cluster GD overlap, unlike the raw gap), (4) assigns every
+individual to a cluster at each K, and (5) produces a multi-panel
 PDF: on the left a tree with per-K cluster-assignment columns and a % genotyped
 bar aligned to the tips, and on the right a set of differentiation views
 (cluster-combination similarity histogram, private / fixed-private alleles both
@@ -48,14 +49,13 @@ import numpy as np
 import vcf_clone_detect
 
 __author__ = 'Pim Bongaerts'
-__copyright__ = 'Copyright (C) 2024 Pim Bongaerts'
+__copyright__ = 'Copyright (C) 2026 Pim Bongaerts'
 __license__ = 'GPL'
 
 
 DEFAULT_METHOD = 'ibs'
 DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
-DEF_MIN_GAP = 0.05
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
 CSV_SUFFIX = '_clusters.csv'
@@ -181,14 +181,48 @@ def build_linkage(dist):
 # --------------------------------------------------------------------------- #
 #  K evaluation (cut-off + separation gap per K, with stopping rule)
 # --------------------------------------------------------------------------- #
-def evaluate_k(linkage_matrix, n, max_k, min_cluster_size, min_gap):
-    """ For each K from 2 upward determine the similarity cut-off that yields K
-    clusters and the separation gap supporting it, stopping once a clean split
-    can no longer be made. Returns (records, k_stop, best_k).
+def mean_silhouette(dist, labels):
+    """ Mean silhouette width for a clustering, from a precomputed dissimilarity
+    matrix. Measures how much better each sample fits its own cluster than the
+    nearest other cluster; robust to between-cluster distance overlap (unlike the
+    raw merge-height gap). Range ~[-1, 1]; higher = better-separated clusters. """
+    clusters = np.unique(labels)
+    n_clusters = len(clusters)
+    if n_clusters < 2:
+        return 0.0
+    n = len(labels)
+    mean_to = np.zeros((n, n_clusters))      # mean dist from sample to cluster c
+    counts = np.zeros(n_clusters)
+    own = np.zeros(n, dtype=int)
+    for ci, cluster in enumerate(clusters):
+        member = labels == cluster
+        counts[ci] = member.sum()
+        mean_to[:, ci] = dist[:, member].mean(axis=1)
+        own[member] = ci
+    own_count = counts[own]
+    own_mean = mean_to[np.arange(n), own]
+    # a(i): mean within-cluster distance, excluding self (self-distance is 0)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        a = np.where(own_count > 1, own_mean * own_count / (own_count - 1), 0.0)
+    # b(i): smallest mean distance to any other cluster
+    other = mean_to.copy()
+    other[np.arange(n), own] = np.inf
+    b = other.min(axis=1)
+    denom = np.maximum(a, b)
+    s = np.where(denom > 0, (b - a) / denom, 0.0)
+    return float(np.mean(s))
 
-    Indexing: `Z[:,2]` are the n-1 merge heights ascending. K clusters occur
-    for a cut height in (Z[n-1-K, 2], Z[n-K, 2]); the gap supporting K is the
-    width of that interval. """
+
+def evaluate_k(linkage_matrix, dist, n, max_k, min_cluster_size):
+    """ Evaluate every K from 2 to max_k: the similarity cut-off that yields K
+    clusters, the merge-height separation gap, and the silhouette width. Returns
+    (records, best_k). The whole range is scanned (no early break); best_k is the
+    K with the highest silhouette among splits whose clusters all meet
+    `min_cluster_size` (so that adding singletons at high K does not win).
+
+    Indexing: `Z[:,2]` are the n-1 merge heights ascending. K clusters occur for
+    a cut height in (Z[n-1-K, 2], Z[n-K, 2]); the gap supporting K is the width
+    of that interval. """
     from scipy.cluster.hierarchy import fcluster
     heights = linkage_matrix[:, 2]
     root_height = heights[n - 2] if n >= 2 else 1.0
@@ -204,18 +238,14 @@ def evaluate_k(linkage_matrix, n, max_k, min_cluster_size, min_gap):
         sizes = np.bincount(labels)[1:]
         records.append({'K': k, 'labels': labels, 'cutoff': cutoff_sim,
                         'abs_gap': abs_gap, 'rel_gap': rel_gap,
+                        'silhouette': mean_silhouette(dist, labels),
                         'min_size': int(sizes.min()),
                         'n_clusters': int((sizes > 0).sum())})
-        # Stop scanning once this split is no longer clean (record it, then halt)
-        if rel_gap < min_gap or int(sizes.min()) < min_cluster_size:
-            break
 
-    clean = [r for r in records
-             if r['rel_gap'] >= min_gap and r['min_size'] >= min_cluster_size]
-    k_stop = max((r['K'] for r in clean), default=2)
-    candidates = [r for r in records if r['K'] <= k_stop]
-    best_k = max(candidates, key=lambda r: r['abs_gap'])['K'] if candidates else 2
-    return records, k_stop, best_k
+    valid = [r for r in records if r['min_size'] >= min_cluster_size]
+    pool = valid if valid else records
+    best_k = max(pool, key=lambda r: r['silhouette'])['K']
+    return records, best_k
 
 
 def select_record(records, k):
@@ -742,23 +772,22 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
 # --------------------------------------------------------------------------- #
 #  Text-output helpers
 # --------------------------------------------------------------------------- #
-def print_k_table(records, k_stop, best_k, selected_k):
+def print_k_table(records, best_k, selected_k):
     """ ###3 - K evaluation table. """
-    print('{0:>3}  {1:>10}  {2:>8}  {3:>8}  {4:>9}  {5:>10}  {6}'.format(
-        'K', 'cutoff(%)', 'abs_gap', 'rel_gap', 'min_clus', 'n_clusters',
-        'flag'))
+    print('{0:>3}  {1:>10}  {2:>8}  {3:>8}  {4:>10}  {5:>9}  {6:>10}  {7}'.format(
+        'K', 'cutoff(%)', 'abs_gap', 'rel_gap', 'silhouette', 'min_clus',
+        'n_clusters', 'flag'))
     for record in records:
         flags = []
         if record['K'] == best_k:
             flags.append('best')
         if record['K'] == selected_k:
             flags.append('selected')
-        if record['K'] > k_stop:
-            flags.append('unclean')
-        print('{0:>3}  {1:>10.2f}  {2:>8.4f}  {3:>8.3f}  {4:>9}  {5:>10}  {6}'
-              .format(record['K'], record['cutoff'], record['abs_gap'],
-                      record['rel_gap'], record['min_size'],
-                      record['n_clusters'], ', '.join(flags)))
+        print('{0:>3}  {1:>10.2f}  {2:>8.4f}  {3:>8.3f}  {4:>10.3f}  {5:>9}  '
+              '{6:>10}  {7}'.format(record['K'], record['cutoff'],
+                                    record['abs_gap'], record['rel_gap'],
+                                    record['silhouette'], record['min_size'],
+                                    record['n_clusters'], ', '.join(flags)))
 
 
 def cluster_size_map(labels, clusters):
@@ -769,7 +798,7 @@ def cluster_size_map(labels, clusters):
 #  Main
 # --------------------------------------------------------------------------- #
 def main(vcf_filename, pop_filename, output_filename, method, max_k,
-         min_cluster_size, min_gap, force_k, tree_mode, ordination,
+         min_cluster_size, force_k, tree_mode, ordination,
          clone_list, clone_threshold, auto_clone, make_pdf, pdf_output):
 
     print('###1 - Loading VCF (method: {0})'.format(method))
@@ -800,9 +829,9 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
     print('{0} {1}, {2} loci, {3} pair(s) with no shared sites'.format(
         n_units, unit, data['n_loci'], n_no_overlap))
 
-    print('\n###3 - K evaluation (cut-off & separation gap per K)')
-    records, k_stop, best_k = evaluate_k(linkage_matrix, n_units, max_k,
-                                         min_cluster_size, min_gap)
+    print('\n###3 - K evaluation (per-K cut-off, gap and silhouette)')
+    records, best_k = evaluate_k(linkage_matrix, dist, n_units, max_k,
+                                 min_cluster_size)
     selected_k = best_k
     if force_k:
         selected_k = int(force_k)
@@ -811,17 +840,13 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
                              '\n'.format(selected_k, best_k))
             selected_k = best_k
     selected = select_record(records, selected_k)
-    display_max = max(k_stop, selected_k)
-    print_k_table(records, k_stop, best_k, selected_k)
-    has_structure = any(r['rel_gap'] >= min_gap and r['min_size'] >=
-                        min_cluster_size for r in records)
-    if has_structure:
-        print('Best-supported K = {0}; selected K = {1} (well-supported up to '
-              'K = {2})'.format(best_k, selected_k, k_stop))
-    else:
-        print('No well-supported split (no K reached the min-gap/min-cluster '
-              'criteria); showing K = {0} as the weakest default.'.format(
-                  selected_k))
+    display_max = max(r['K'] for r in records)
+    print_k_table(records, best_k, selected_k)
+    best_sil = select_record(records, best_k)['silhouette']
+    print('Best K = {0} (silhouette {1:.3f}); selected K = {2}. Silhouette is '
+          'the K-selection metric (higher = better-separated clusters); with '
+          'overlapping lineages it stays modest. Use --k to pick another K.'
+          .format(best_k, best_sil, selected_k))
 
     print('\n###4 - Cluster membership at selected K = {0}'.format(selected_k))
     labels = selected['labels']
@@ -930,13 +955,9 @@ if __name__ == '__main__':
                         '{0})'.format(DEF_MAX_K))
     parser.add_argument('--min-cluster-size', dest='min_cluster_size', type=int,
                         default=DEF_MIN_CLUSTER_SIZE, metavar='N',
-                        help='stop splitting once a cluster would fall below '
-                             'this size (default: {0})'.format(
+                        help='clusters smaller than this exclude a K from being '
+                             'chosen as best (default: {0})'.format(
                                  DEF_MIN_CLUSTER_SIZE))
-    parser.add_argument('--min-gap', dest='min_gap', type=float,
-                        default=DEF_MIN_GAP, metavar='frac',
-                        help='minimum relative separation gap for a split to '
-                             'count as clean (default: {0})'.format(DEF_MIN_GAP))
     parser.add_argument('--k', dest='force_k', type=int, default=None,
                         metavar='K', help='force which K drives the '
                         'differentiation panels (default: best-supported K)')
@@ -953,7 +974,7 @@ if __name__ == '__main__':
                         help='do not generate the PDF report (text only)')
     args = parser.parse_args()
     main(args.vcf_filename, args.pop_filename, args.output_filename,
-         args.method, args.max_k, args.min_cluster_size, args.min_gap,
+         args.method, args.max_k, args.min_cluster_size,
          args.force_k, args.tree_mode, args.ordination, args.clone_list,
          args.clone_threshold, args.auto_clone, make_pdf=not args.no_pdf,
          pdf_output=args.pdf_output)

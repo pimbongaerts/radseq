@@ -135,7 +135,7 @@ genetic groups, how many of them are there, and how differentiated are they". *[
                               [-m {ibs,het-masked,dosage,single-read}]
                               [--auto-clone] [--clone-list file]
                               [--clone-threshold pct] [--max-k K]
-                              [--min-cluster-size N] [--min-gap frac] [--k K]
+                              [--min-cluster-size N] [--k K]
                               [--tree {upgma,nj}] [--ordination {pca,pcoa}]
                               [--pdf-output pdf_file] [--no-pdf]
 
@@ -155,10 +155,11 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	
 	The script (1) computes pairwise genetic similarities (`--method`, default
 	`ibs`; `dosage` is the documented alternative), (2) builds a UPGMA / average-
-	linkage tree, (3) sweeps K = 2, 3, ... determining for each K the genetic-
-	similarity cut-off that splits the tree into K groups and a separation gap,
-	stopping once a clean split can no longer be made (or `--max-k` is reached),
-	(4) assigns every genet to a cluster at each K, and (5) produces a multi-panel
+	linkage tree, (3) evaluates K = 2 .. `--max-k`, reporting for each K the
+	genetic-similarity cut-off that splits the tree into K groups, the merge-height
+	separation gap, and the silhouette width, and picks the best K by silhouette
+	(robust to between-cluster GD overlap, unlike the raw gap), (4) assigns every
+	individual to a cluster at each K, and (5) produces a multi-panel
 	PDF: on the left a tree with per-K cluster-assignment columns and a % genotyped
 	bar aligned to the tips, and on the right a set of differentiation views
 	(cluster-combination similarity histogram, private / fixed-private alleles both
@@ -195,10 +196,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	                        clone-correct using this manual similarity % threshold
 	                        above which individuals are clones
 	  --max-k K             maximum K to evaluate (default: 10)
-	  --min-cluster-size N  stop splitting once a cluster would fall below this
-	                        size (default: 2)
-	  --min-gap frac        minimum relative separation gap for a split to count
-	                        as clean (default: 0.05)
+	  --min-cluster-size N  clusters smaller than this exclude a K from being
+	                        chosen as best (default: 2)
 	  --k K                 force which K drives the differentiation panels
 	                        (default: best-supported K)
 	  --tree {upgma,nj}     tree to draw (default: upgma; nj is display only,

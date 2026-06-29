@@ -1,11 +1,13 @@
 # RAD-seq script library
 Collection of Python scripts for parsing/analysis of reduced representation sequencing data (e.g. RAD-seq, nextRAD). While many of the scripts are functional, some still need considerable cleaning up and more thorough testing - and this repository therefore very much represents a *work in progress*.
 
-These scripts all require [Python 3](https://www.python.org/download/releases/3.0/), with some requiring additional packages ([BioPython](https://github.com/biopython/biopython.github.io/) and [NumPy](http://www.numpy.org/) - both of which can be easily installed using the [Miniconda](http://conda.pydata.org/miniconda.html) or [Anaconda](https://www.continuum.io/downloads) installers, or [PyVCF](https://github.com/jamescasbon/PyVCF) - which can be installed using e.g. `pip install PyVCF`). Usage information for each script can be obtained using the `-h` or `--help` flag (e.g. `python3 name_of_script.py -h`, or is also listed in this README.
+These scripts all require [Python 3](https://www.python.org/download/releases/3.0/), with some requiring additional packages ([BioPython](https://github.com/biopython/biopython.github.io/), [NumPy](http://www.numpy.org/) and [SciPy](https://scipy.org/) - which can be easily installed using the [Miniconda](http://conda.pydata.org/miniconda.html) or [Anaconda](https://www.continuum.io/downloads) installers, or [PyVCF](https://github.com/jamescasbon/PyVCF) - which can be installed using e.g. `pip install PyVCF`). Usage information for each script can be obtained using the `-h` or `--help` flag (e.g. `python3 name_of_script.py -h`, or is also listed in this README.
 
 This documentation is dynamically generated using the listed [README_compile.py](README_compile.py) script, extracting purpose, usage and links to example files from the [argparse](https://docs.python.org/3/library/argparse.html) information of each script.
 
 ## Recently added
+**[vcf_cluster_explore.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore.py)** - clone-insensitive exploration of genetic clusters/lineages (UPGMA tree, per-K cluster assignment and a multi-panel differentiation report)
+
 **[vcf_remap2genome.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_remap2genome.py)** - script to remap VCF from de novo RAD assembly back to a reference genome
 
 **[pyrad_find_caps_markers.py](https://github.com/pimbongaerts/radseq/blob/master/pyrad_find_caps_markers.py)** - search PyRAD output file for diagnostic CAPS loci that can distinguish two groups (or one group and all other samples)
@@ -121,6 +123,92 @@ terminal with `$ chmod +x vcf_spider.py`.
 	
 
 
+
+
+**[vcf_cluster_explore.py](vcf_cluster_explore.py)** - Explores the deeper genetic clusters (lineages) in a `.vcf` dataset in a way
+that is NOT biased by the presence of clones. Where `vcf_clone_detect.py` asks
+"which individuals are near-identical (clones)", this script asks "what are the
+genetic groups, how many of them are there, and how differentiated are they". *[File did not pass PEP8 check]*
+
+	usage: vcf_cluster_explore.py [-h] [-v vcf_file] [-p pop_file]
+                              [-o cluster_file]
+                              [-m {ibs,het-masked,dosage,single-read}]
+                              [--auto-clone] [--clone-list file]
+                              [--clone-threshold pct] [--max-k K]
+                              [--min-cluster-size N] [--min-gap frac] [--k K]
+                              [--tree {upgma,nj}] [--ordination {pca,pcoa}]
+                              [--pdf-output pdf_file] [--no-pdf]
+
+	Clones are non-independent samples that distort per-group allele frequencies and
+	therefore bias essentially every population-genetic measure (Fst, private and
+	fixed-private alleles, heterozygosity, ordination, and even the clustering
+	itself). By default the script does NOT remove clones - it runs on all
+	individuals as given (use this when the input is already clone-corrected, or to
+	inspect the raw structure). Optional CLONE-CORRECTION reduces each clonal genet
+	to a single representative ramet (the one with the least missing data) and runs
+	the entire analysis - similarity, tree, K-evaluation and all differentiation
+	statistics - on that clone-corrected (genet) set. Enable it with `--auto-clone`
+	(clonal genets detected internally by reusing `vcf_clone_detect.py` at an auto-
+	inferred threshold), `--clone-threshold PCT` (manual threshold), or
+	`--clone-list FILE` (external list of samples to drop, e.g. the "individuals to
+	remove" output of `vcf_clone_detect.py`).
+	
+	The script (1) computes pairwise genetic similarities (`--method`, default
+	`ibs`; `dosage` is the documented alternative), (2) builds a UPGMA / average-
+	linkage tree, (3) sweeps K = 2, 3, ... determining for each K the genetic-
+	similarity cut-off that splits the tree into K groups and a separation gap,
+	stopping once a clean split can no longer be made (or `--max-k` is reached),
+	(4) assigns every genet to a cluster at each K, and (5) produces a multi-panel
+	PDF: on the left a tree with per-K cluster-assignment columns and a % genotyped
+	bar aligned to the tips, and on the right a set of differentiation views
+	(cluster-combination similarity histogram, private / fixed-private alleles both
+	per-cluster and per-pair, a pairwise Fst heatmap, a fixed-difference matrix, a
+	PCA/PCoA scatter and a per-cluster diversity bar).
+	
+	The UPGMA linkage is the single source of truth: it is drawn as the tree AND
+	cut to give every K-assignment, so the tree and the columns are always coherent.
+	With `--tree nj` a neighbour-joining tree (as in `vcf_clone_detect.py`) is drawn
+	for display instead, but the cluster assignments still come from UPGMA.
+	
+	Example:
+	  python3 vcf_cluster_explore.py --vcf vcf_file.vcf --pop pop_file.txt       --output clusters.csv
+	
+	options:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        input file with SNP data (`.vcf`)
+	  -p pop_file, --pop pop_file
+	                        optional text file (tsv/csv) with individuals and
+	                        populations (used only for a cluster x population
+	                        cross-tabulation, not for clustering)
+	  -o cluster_file, --output cluster_file
+	                        output file (csv) for per-sample cluster assignments
+	                        across K (default: derived from vcf)
+	  -m {ibs,het-masked,dosage,single-read}, --method {ibs,het-masked,dosage,single-read}
+	                        similarity measure (default: ibs; dosage is the
+	                        documented alternative)
+	  --auto-clone          clone-correct using an auto-inferred clone threshold
+	                        (default: clones are NOT removed)
+	  --clone-list file     external list of samples to drop for clone-correction
+	                        (e.g. vcf_clone_detect "to remove" output)
+	  --clone-threshold pct
+	                        clone-correct using this manual similarity % threshold
+	                        above which individuals are clones
+	  --max-k K             maximum K to evaluate (default: 10)
+	  --min-cluster-size N  stop splitting once a cluster would fall below this
+	                        size (default: 2)
+	  --min-gap frac        minimum relative separation gap for a split to count
+	                        as clean (default: 0.05)
+	  --k K                 force which K drives the differentiation panels
+	                        (default: best-supported K)
+	  --tree {upgma,nj}     tree to draw (default: upgma; nj is display only,
+	                        clusters still come from upgma)
+	  --ordination {pca,pcoa}
+	                        ordination for the scatter panel (default: pca)
+	  --pdf-output pdf_file
+	                        filename for the PDF report
+	  --no-pdf              do not generate the PDF report (text only)
+	
 
 
 **[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts

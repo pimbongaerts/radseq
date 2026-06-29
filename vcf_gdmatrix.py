@@ -3,6 +3,16 @@
 Calculates Genetic Distance (Hamming / p-distance) for each pair of individuals
 in a `.vcf` file and outputs as matrix. Popfile can optionally be supplied to
 indicate order in matrix (otherwise VCF sample order is used).
+
+The distance is the allele-sharing `1 - IBS` over sites genotyped in both
+individuals (pairwise-complete), where heterozygote-vs-heterozygote counts as a
+full match. This is the L1 / allele-count family and is equivalent to PLINK
+`--distance 1-ibs flat-missing` (verified identical to rounding) and to PLINK's
+default `--distance` / `allele-ct` output (same metric, rescaled). It is the
+same measure as the default `ibs` method in `vcf_clone_detect.py`; see that
+script for alternative measures (dosage = PLINK `--make-rel cov`; single-read =
+ANGSD `-doIBS 1`). Note PLINK/ANGSD apply their own missing-data scaling, so
+values can drift slightly on data with missing genotypes.
 """
 import sys
 import argparse
@@ -192,7 +202,9 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "vcf_filename", metavar="vcf_file", help="input file with SNP data (`.vcf`)"
     )

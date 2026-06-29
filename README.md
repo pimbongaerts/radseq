@@ -137,7 +137,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
                               [--clone-threshold pct] [--max-k K]
                               [--min-cluster-size N] [--k K]
                               [--tree {upgma,nj}] [--ordination {pca,pcoa}]
-                              [--pdf-output pdf_file] [--no-pdf]
+                              [--loci loci_file] [--pdf-output pdf_file]
+                              [--no-pdf]
 
 	Clones are non-independent samples that distort per-group allele frequencies and
 	therefore bias essentially every population-genetic measure (Fst, private and
@@ -204,6 +205,9 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	                        clusters still come from upgma)
 	  --ordination {pca,pcoa}
 	                        ordination for the scatter panel (default: pca)
+	  --loci loci_file      optional ipyrad `.loci` file; adds a shared/unique
+	                        loci panel (private loci per cluster + pairwise
+	                        Jaccard of recovered loci)
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)

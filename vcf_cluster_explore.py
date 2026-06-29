@@ -181,16 +181,16 @@ def build_linkage(dist):
 # --------------------------------------------------------------------------- #
 #  K evaluation (cut-off + separation gap per K, with stopping rule)
 # --------------------------------------------------------------------------- #
-def mean_silhouette(dist, labels):
-    """ Mean silhouette width for a clustering, from a precomputed dissimilarity
-    matrix. Measures how much better each sample fits its own cluster than the
-    nearest other cluster; robust to between-cluster distance overlap (unlike the
-    raw merge-height gap). Range ~[-1, 1]; higher = better-separated clusters. """
+def silhouette_samples(dist, labels):
+    """ Per-sample silhouette width from a precomputed dissimilarity matrix.
+    s(i) compares how much better sample i fits its own cluster than the nearest
+    other cluster; robust to between-cluster distance overlap (unlike the raw
+    merge-height gap). Returns an array (one value per sample, range ~[-1, 1]). """
     clusters = np.unique(labels)
     n_clusters = len(clusters)
-    if n_clusters < 2:
-        return 0.0
     n = len(labels)
+    if n_clusters < 2:
+        return np.zeros(n)
     mean_to = np.zeros((n, n_clusters))      # mean dist from sample to cluster c
     counts = np.zeros(n_clusters)
     own = np.zeros(n, dtype=int)
@@ -209,8 +209,35 @@ def mean_silhouette(dist, labels):
     other[np.arange(n), own] = np.inf
     b = other.min(axis=1)
     denom = np.maximum(a, b)
-    s = np.where(denom > 0, (b - a) / denom, 0.0)
-    return float(np.mean(s))
+    return np.where(denom > 0, (b - a) / denom, 0.0)
+
+
+def mean_silhouette(dist, labels):
+    """ Mean silhouette width (higher = better-separated clusters). """
+    return float(np.mean(silhouette_samples(dist, labels)))
+
+
+def calinski_harabasz(dist, labels):
+    """ Calinski-Harabasz index from a precomputed distance matrix (via the
+    Huygens identity on squared distances). A second, variance-based K-selection
+    index that corroborates the silhouette; higher = better-separated. """
+    clusters = np.unique(labels)
+    k = len(clusters)
+    n = len(labels)
+    if k < 2 or n <= k:
+        return 0.0
+    sq = dist ** 2
+    total_ss = sq.sum() / (2.0 * n)
+    within_ss = 0.0
+    for cluster in clusters:
+        member = labels == cluster
+        nc = int(member.sum())
+        if nc > 0:
+            within_ss += sq[np.ix_(member, member)].sum() / (2.0 * nc)
+    between_ss = total_ss - within_ss
+    if within_ss <= 0:
+        return 0.0
+    return float((between_ss / (k - 1)) / (within_ss / (n - k)))
 
 
 def evaluate_k(linkage_matrix, dist, n, max_k, min_cluster_size):
@@ -239,6 +266,7 @@ def evaluate_k(linkage_matrix, dist, n, max_k, min_cluster_size):
         records.append({'K': k, 'labels': labels, 'cutoff': cutoff_sim,
                         'abs_gap': abs_gap, 'rel_gap': rel_gap,
                         'silhouette': mean_silhouette(dist, labels),
+                        'ch': calinski_harabasz(dist, labels),
                         'min_size': int(sizes.min()),
                         'n_clusters': int((sizes > 0).sum())})
 
@@ -347,6 +375,28 @@ def pairwise_fst(stats):
     return fst
 
 
+def pairwise_dxy(stats):
+    """ Absolute divergence dxy between every cluster pair: mean over sites (with
+    data in both) of the expected proportion of pairwise allelic differences
+    between a sequence drawn from each cluster, `pa*(1-pb) + pb*(1-pa)`. Unlike
+    Fst (relative), dxy is not deflated by low within-cluster diversity. Returns
+    KxK (NaN diag). """
+    n_clusters = stats['n_clusters']
+    freq, has_data = stats['freq'], stats['has_data']
+    dxy = np.full((n_clusters, n_clusters), np.nan)
+    for a in range(n_clusters):
+        for b in range(a + 1, n_clusters):
+            pa, pb = freq[a], freq[b]
+            use = has_data[a] & has_data[b] & np.isfinite(pa) & np.isfinite(pb)
+            if use.any():
+                value = float((pa[use] * (1 - pb[use])
+                               + pb[use] * (1 - pa[use])).mean())
+            else:
+                value = np.nan
+            dxy[a, b] = dxy[b, a] = value
+    return dxy
+
+
 def cluster_diversity(state_code, state_is_hom, labels, stats):
     """ Per-cluster observed heterozygosity and % polymorphic sites. """
     present = state_code >= 0
@@ -362,6 +412,59 @@ def cluster_diversity(state_code, state_is_hom, labels, stats):
         has_data = stats['has_data'][ci].sum()
         poly.append(100.0 * segregating.sum() / has_data if has_data else np.nan)
     return het_obs, poly
+
+
+def parse_loci_presence(filename, names):
+    """ Parse an ipyrad `.loci` file into per-locus sample-presence sets.
+
+    Format: each locus is a block of `samplename<whitespace>sequence` lines,
+    terminated by a `//...|locus_id|` separator line. A sample line means that
+    sample recovered the locus. Returns a list (one set of sample names per
+    locus, restricted to `names`) and the count of `.loci` samples that matched
+    the VCF. """
+    name_set = set(names)
+    presence = []
+    current = set()
+    matched = set()
+    with open(filename, 'r') as handle:
+        for line in handle:
+            if line.startswith('//'):
+                if current:
+                    presence.append(current)
+                current = set()
+                continue
+            sample = line.split(None, 1)[0] if line.strip() else ''
+            if sample in name_set:
+                current.add(sample)
+                matched.add(sample)
+    if current:
+        presence.append(current)
+    return presence, len(matched)
+
+
+def locus_sharing_stats(presence, labels, names):
+    """ From per-locus sample presence + cluster labels, compute per-cluster
+    private loci (recovered in >=1 sample of only that cluster) and a pairwise
+    shared-loci Jaccard matrix. Returns (clusters, private_counts, jaccard). """
+    name_cluster = {nm: int(labels[i]) for i, nm in enumerate(names)}
+    clusters = sorted(set(name_cluster.values()))
+    cidx = {c: i for i, c in enumerate(clusters)}
+    k = len(clusters)
+    present_any = np.zeros((k, len(presence)), dtype=bool)   # cluster x locus
+    for li, locus in enumerate(presence):
+        for nm in locus:
+            present_any[cidx[name_cluster[nm]], li] = True
+    n_present = present_any.sum(axis=0)
+    private = np.zeros(k, dtype=int)
+    for ci in range(k):
+        private[ci] = int((present_any[ci] & (n_present == 1)).sum())
+    jaccard = np.full((k, k), np.nan)
+    for a in range(k):
+        for b in range(k):
+            union = (present_any[a] | present_any[b]).sum()
+            inter = (present_any[a] & present_any[b]).sum()
+            jaccard[a, b] = inter / union if union > 0 else np.nan
+    return clusters, private, jaccard
 
 
 def ordinate(dosage, dist, kind):
@@ -429,7 +532,7 @@ def derive_outputs(output_filename, vcf_filename, pdf_output):
 #  PDF report
 # --------------------------------------------------------------------------- #
 def cluster_palette(n):
-    """ A categorical colour per cluster id (1..n). """
+    """ A list of n categorical colours. """
     import matplotlib.pyplot as plt
     if n <= 10:
         cmap = plt.cm.tab10
@@ -441,6 +544,53 @@ def cluster_palette(n):
         cmap = plt.cm.gist_rainbow
         cols = [cmap(i / max(n - 1, 1)) for i in range(n)]
     return cols
+
+
+def assign_hierarchical_colors(records):
+    """ Descent-consistent cluster colours across K. Because UPGMA cuts are
+    strictly nested, a cluster either persists or splits as K grows; we let a
+    colour follow a lineage so a new colour only appears at a genuine split (and
+    is never reused for an unrelated cluster). Returns {K: {cluster_id: rgba}}.
+
+    Per K (ascending), each cluster is a frozenset of member indices. Processing
+    new clusters largest-first: a cluster identical to a previous one keeps its
+    colour; otherwise its parent is the previous cluster that is its superset and
+    the first (largest) child to claim that parent's colour inherits it, while
+    later children draw the next unused palette colour. """
+    max_clusters = max(r['n_clusters'] for r in records)
+    palette = cluster_palette(max_clusters)
+    ordered = sorted(records, key=lambda r: r['K'])
+    colors_by_k = {}
+    prev = {}                       # frozenset(members) -> rgba (previous K)
+    next_color = 0
+    for record in ordered:
+        labels = record['labels']
+        members = {}
+        for i, lab in enumerate(labels):
+            members.setdefault(int(lab), set()).add(i)
+        parts = {cid: frozenset(s) for cid, s in members.items()}
+        current = {}                # frozenset -> rgba (this K)
+        claimed = set()             # previous framesets whose colour was taken
+        cid_color = {}
+        # Largest clusters first so the dominant child inherits a parent colour
+        for cid in sorted(parts, key=lambda c: (-len(parts[c]), min(parts[c]))):
+            part = parts[cid]
+            if part in prev:                         # cluster persisted
+                colour = prev[part]
+            else:
+                parent = next((p for p in prev if part <= p
+                               and p not in claimed), None)
+                if parent is not None:               # first child inherits
+                    colour = prev[parent]
+                    claimed.add(parent)
+                else:                                # new lineage -> new colour
+                    colour = palette[next_color % len(palette)]
+                    next_color += 1
+            current[part] = colour
+            cid_color[cid] = colour
+        colors_by_k[record['K']] = cid_color
+        prev = current
+    return colors_by_k
 
 
 def build_upgma_tree(linkage_matrix, names):
@@ -477,15 +627,19 @@ def build_nj_tree(dist, names):
 
 def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
                      selected, perc_genotyped, data, method, tree_mode,
-                     ordination, pdf_filename):
-    """ Multi-panel PDF: left = tree + per-K cluster columns + %genotyped bar;
-    right = cluster-combination histogram, private/fixed alleles (per-cluster &
-    per-pair), Fst heatmap, fixed-difference matrix, ordination, diversity. """
+                     ordination, pdf_filename, loci_presence=None):
+    """ Multi-panel PDF. Left: tree + per-K cluster columns + %genotyped bar.
+    Right (filling the full page height): K-support panels (metric-vs-K curve,
+    per-sample silhouette) then lineage-differentiation panels (ordination with
+    hulls, Fst vs dxy heatmaps, SNP diagnostics, and optional shared/unique loci
+    when an ipyrad `.loci` file is supplied). Cluster colours are descent-
+    consistent across K (assign_hierarchical_colors). """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
-    from matplotlib.patches import Rectangle
+    from matplotlib.patches import Rectangle, Polygon
     from matplotlib.collections import PatchCollection
+    from scipy.spatial import ConvexHull
     import Bio.Phylo
 
     name_idx = {nm: i for i, nm in enumerate(names)}
@@ -493,34 +647,45 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
     display = [r for r in records if r['K'] <= col_max]
     n_cols = len(display)
 
-    # Selected-K clustering drives the right-hand panels and the tip colours
+    # Descent-consistent colours, shared by K-columns, tips, bar and all panels
+    colors_by_k = assign_hierarchical_colors(display)
     labels = selected['labels']
     stats = cluster_allele_stats(data['dosage'], labels)
     clusters = stats['clusters']
-    sel_palette = cluster_palette(stats['n_clusters'])
-    cl_index = {c: i for i, c in enumerate(clusters)}
-    sel_color = {nm: sel_palette[cl_index[int(labels[name_idx[nm]])]]
-                 for nm in names}
+    n_clusters = stats['n_clusters']
+    sel_cid_color = colors_by_k[selected['K']]
+    sel_palette = [sel_cid_color[c] for c in clusters]
+    sel_color = {nm: sel_cid_color[int(labels[name_idx[nm]])] for nm in names}
+    cluster_labels = ['C{0}'.format(c) for c in clusters]
 
     # --- canvas geometry (inches) -> figure fractions via ax_in() ------------
     left_margin, right_margin = 0.6, 0.6
-    top_margin, bottom_margin = 0.5, 0.5
+    top_margin, bottom_margin = 0.5, 0.6
     tree_w = 4.2
     kcol_w = max(0.9, 0.22 * n_cols)
     bar_w = 1.0
     right_w = 6.6
-    gap = 0.5
+    gap = 0.6
     per_tip = 0.13
+    hm_w = right_w * 0.46                 # heatmap / sub-panel width
+    hm_x2 = right_w * 0.54               # x-offset of the right sub-panel
 
     left_band_w = (left_margin + tree_w + 0.1 + kcol_w + 0.15 + bar_w)
     fig_w = left_band_w + gap + right_w + right_margin
     x_right = left_band_w + gap
 
-    panel_h = [1.8, 1.9, 1.7, 1.7, 2.0, 1.6]      # the 6 right-hand panels
-    right_needed = top_margin + sum(panel_h) + 0.5 * len(panel_h) + bottom_margin
+    # Right column = a stack of rows filling the full content height.
+    # A1 metric-vs-K | A2 per-sample silhouette | B1 ordination |
+    # B2 Fst|dxy | B3 fixed-diff|private | [B4 loci private|shared]
+    n_rows = 6 if loci_presence is not None else 5
+    row_gap = 0.55
+    min_row_h = 1.7
     tree_h = max(3.0, n_tips * per_tip)
-    left_needed = top_margin + tree_h + bottom_margin
-    fig_h = max(left_needed, right_needed)
+    min_right = n_rows * min_row_h + (n_rows - 1) * row_gap
+    content_h = max(tree_h, min_right)
+    tree_h = content_h
+    row_h = (content_h - (n_rows - 1) * row_gap) / n_rows
+    fig_h = top_margin + content_h + bottom_margin
 
     fig = plt.figure(figsize=(fig_w, fig_h))
 
@@ -528,6 +693,31 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
         return fig.add_axes([x_in / fig_w,
                              (fig_h - ytop_in - h_in) / fig_h,
                              w_in / fig_w, h_in / fig_h])
+
+    def row_top(r):
+        return top_margin + r * (row_h + row_gap)
+
+    def despine(ax):
+        for spine in ('top', 'right'):
+            ax.spines[spine].set_visible(False)
+
+    def heatmap(ax, mat, cmap, fmt, title):
+        disp = np.array(mat, dtype=float)
+        np.fill_diagonal(disp, np.nan)
+        image = ax.imshow(disp, cmap=cmap, aspect='auto')
+        ax.set_xticks(range(n_clusters))
+        ax.set_yticks(range(n_clusters))
+        ax.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
+        ax.set_yticklabels(cluster_labels, fontsize=6)
+        hi = np.nanmax(disp) if np.isfinite(disp).any() else 1.0
+        for a in range(n_clusters):
+            for b in range(n_clusters):
+                if a != b and np.isfinite(disp[a, b]):
+                    ax.text(b, a, fmt.format(mat[a][b]), ha='center',
+                            va='center', fontsize=5,
+                            color='white' if disp[a, b] < hi / 2 else 'black')
+        ax.set_title(title, fontsize=8)
+        fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
 
     # --- tree ----------------------------------------------------------------
     ax_tree = ax_in(left_margin, top_margin, tree_w, tree_h)
@@ -556,25 +746,23 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
         plt.close(fig)
         return
     ys = sorted(tip_y.values())
-    row_h = (ys[1] - ys[0]) if len(ys) > 1 else 1.0
+    row_pitch = (ys[1] - ys[0]) if len(ys) > 1 else 1.0
     if tree_mode == 'nj':
         title = '{0} tree (display); clusters = UPGMA'.format(tree_mode.upper())
     else:
         title = 'UPGMA tree (clusters = tree cuts)'
     ax_tree.set_title(title, fontsize=8)
 
-    # --- per-K cluster-assignment columns ------------------------------------
+    # --- per-K cluster-assignment columns (descent-consistent colours) -------
     ax_k = ax_in(left_margin + tree_w + 0.1, top_margin, kcol_w, tree_h)
     rects, colors = [], []
     for col, record in enumerate(display):
-        palette = (sel_palette if record['K'] == selected['K']
-                   else cluster_palette(record['n_clusters']))
-        idx = {c: i for i, c in enumerate(sorted(set(int(x)
-               for x in record['labels'])))}
+        cid_color = colors_by_k[record['K']]
         for nm, y in tip_y.items():
             cid = int(record['labels'][name_idx[nm]])
-            rects.append(Rectangle((col, y - row_h * 0.45), 1, row_h * 0.9))
-            colors.append(palette[idx[cid]])
+            rects.append(Rectangle((col, y - row_pitch * 0.45), 1,
+                                   row_pitch * 0.9))
+            colors.append(cid_color[cid])
     ax_k.add_collection(PatchCollection(rects, facecolors=colors,
                                         edgecolors='none'))
     ax_k.set_xlim(0, max(n_cols, 1))
@@ -593,70 +781,118 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
     bar_names = [nm for nm in names if nm in tip_y]
     bar_y = [tip_y[nm] for nm in bar_names]
     bar_v = [perc_genotyped[nm] for nm in bar_names]
-    ax_bar.barh(bar_y, bar_v, height=row_h * 0.8,
+    ax_bar.barh(bar_y, bar_v, height=row_pitch * 0.8,
                 color=[sel_color[nm] for nm in bar_names], edgecolor='none')
     ax_bar.set_ylim(ax_tree.get_ylim())
     ax_bar.set_yticks([])
     ax_bar.set_xlim(max(0, min(bar_v) - 5), 100)
     ax_bar.set_title('% genotyped', fontsize=7)
     ax_bar.tick_params(labelsize=6)
-    for spine in ('top', 'right'):
-        ax_bar.spines[spine].set_visible(False)
+    despine(ax_bar)
 
-    cluster_labels = ['C{0}'.format(c) for c in clusters]
+    # ===================== Group A - how many lineages? ======================
+    # --- A1: metric-vs-K curve (silhouette + Calinski-Harabasz) --------------
+    ax_a1 = ax_in(x_right, row_top(0), right_w, row_h)
+    ks = [r['K'] for r in display]
+    sils = [r['silhouette'] for r in display]
+    chs = [r['ch'] for r in display]
+    ax_a1.plot(ks, sils, '-o', color='#1f6f6f', markersize=4,
+               label='silhouette')
+    peak = max(display, key=lambda r: r['silhouette'])['K']
+    ax_a1.plot([peak], [dict(zip(ks, sils))[peak]], '*', color='#1f6f6f',
+               markersize=12, zorder=5)
+    ax_a1.axvline(selected['K'], color='red', ls='--', lw=1,
+                  label='selected K={0}'.format(selected['K']))
+    ax_a1.set_xlabel('K (number of clusters)', fontsize=7)
+    ax_a1.set_ylabel('silhouette width', fontsize=7, color='#1f6f6f')
+    ax_a1.set_xticks(ks)
+    ax_a1.tick_params(labelsize=6)
+    ax_a1b = ax_a1.twinx()
+    ax_a1b.plot(ks, chs, '-s', color='0.6', markersize=3,
+                label='Calinski-Harabasz')
+    ax_a1b.set_ylabel('Calinski-Harabasz', fontsize=7, color='0.5')
+    ax_a1b.tick_params(labelsize=6)
+    ax_a1.set_title('Support for K (peak = best silhouette)', fontsize=8)
+    h1, l1 = ax_a1.get_legend_handles_labels()
+    h2, l2 = ax_a1b.get_legend_handles_labels()
+    ax_a1.legend(h1 + h2, l1 + l2, fontsize=5, loc='best', framealpha=0.9)
 
-    # --- (a) cluster-combination similarity histogram ------------------------
-    y_cur = top_margin
-    ax_hist = ax_in(x_right, y_cur, right_w, panel_h[0])
-    triu = np.triu_indices(n_tips, 1)
-    sim_vals = sim[triu]
-    li, lj = labels[triu[0]], labels[triu[1]]
-    finite = np.isfinite(sim_vals)
-    within = li == lj
-    lo = np.floor(np.nanmin(sim_vals[finite])) if finite.any() else 0
-    bins = np.linspace(lo, 100, 40)
-    combos = stats['n_clusters'] * (stats['n_clusters'] + 1) // 2
-    if combos <= 8:
-        for ci, c in enumerate(clusters):
-            mask = finite & within & (li == c)
-            if mask.any():
-                ax_hist.hist(sim_vals[mask], bins=bins, alpha=0.55,
-                             color=sel_palette[ci],
-                             label='within C{0}'.format(c))
-        between_cmap = plt.cm.Greys
-        pairs = [(a, b) for ai, a in enumerate(clusters)
-                 for b in clusters[ai + 1:]]
-        for pi, (a, b) in enumerate(pairs):
-            mask = finite & (((li == a) & (lj == b)) | ((li == b) & (lj == a)))
-            if mask.any():
-                ax_hist.hist(sim_vals[mask], bins=bins, histtype='step',
-                             linewidth=1.2,
-                             color=between_cmap(0.4 + 0.5 * pi / max(len(pairs)
-                                                - 1, 1)),
-                             label='C{0}-C{1}'.format(a, b))
-    else:
-        ax_hist.hist(sim_vals[finite & ~within], bins=bins, color='0.6',
-                     label='between clusters')
-        ax_hist.hist(sim_vals[finite & within], bins=bins, color='#1f6f6f',
-                     alpha=0.8, label='within clusters')
-    ax_hist.axvline(selected['cutoff'], color='red', ls='--', lw=1)
-    ax_hist.set_title('Similarity by cluster combination (K={0})'
-                      .format(selected['K']), fontsize=8)
-    ax_hist.set_xlabel('Genetic similarity (%)', fontsize=7)
-    ax_hist.set_ylabel('Pairs', fontsize=7)
-    ax_hist.legend(fontsize=5, ncol=2, framealpha=0.9)
-    ax_hist.tick_params(labelsize=6)
-    for spine in ('top', 'right'):
-        ax_hist.spines[spine].set_visible(False)
+    # --- A2: per-sample silhouette plot at the selected K --------------------
+    ax_a2 = ax_in(x_right, row_top(1), right_w, row_h)
+    sample_sil = silhouette_samples(dist, labels)
+    cluster_gap = max(1, n_tips // 100)
+    ypos = 0
+    yticks, yticklabels = [], []
+    for c in clusters:
+        idx = np.where(labels == c)[0]
+        vals = np.sort(sample_sil[idx])[::-1]
+        yr = np.arange(ypos, ypos + len(vals))
+        ax_a2.barh(yr, vals, height=1.0, color=sel_cid_color[c],
+                   edgecolor='none')
+        yticks.append(ypos + len(vals) / 2.0)
+        yticklabels.append('C{0}'.format(c))
+        ypos += len(vals) + cluster_gap
+    mean_s = float(np.mean(sample_sil))
+    ax_a2.axvline(mean_s, color='red', ls='--', lw=1,
+                  label='mean {0:.3f}'.format(mean_s))
+    ax_a2.axvline(0, color='0.5', lw=0.6)
+    ax_a2.set_ylim(-1, ypos)
+    ax_a2.invert_yaxis()
+    ax_a2.set_yticks(yticks)
+    ax_a2.set_yticklabels(yticklabels, fontsize=6)
+    ax_a2.set_xlabel('silhouette width', fontsize=7)
+    ax_a2.set_title('Per-sample silhouette (K={0})'.format(selected['K']),
+                    fontsize=8)
+    ax_a2.legend(fontsize=5, loc='lower right', framealpha=0.9)
+    ax_a2.tick_params(labelsize=6)
+    despine(ax_a2)
 
-    # --- (b) private + fixed-private alleles (per-cluster & per-pair) ---------
-    y_cur += panel_h[0] + 0.5
+    # ================== Group B - how different are lineages? ================
+    # --- B1: ordination + convex hulls ---------------------------------------
+    ax_b1 = ax_in(x_right, row_top(2), right_w, row_h)
+    coords, pct = ordinate(data['dosage'], dist, ordination)
+    for c in clusters:
+        member = labels == c
+        pts = coords[member]
+        col = sel_cid_color[c]
+        ax_b1.scatter(pts[:, 0], pts[:, 1], s=14, color=col, edgecolor='none',
+                      label='C{0}'.format(c))
+        if pts.shape[0] >= 3:
+            try:
+                hull = ConvexHull(pts)
+                ax_b1.add_patch(Polygon(pts[hull.vertices], closed=True,
+                                        facecolor=col, alpha=0.15,
+                                        edgecolor=col, lw=0.8))
+            except Exception:
+                pass
+    ax_b1.set_xlabel('{0}1 ({1:.1f}%)'.format(ordination.upper(), pct[0]),
+                     fontsize=7)
+    ax_b1.set_ylabel('{0}2 ({1:.1f}%)'.format(ordination.upper(), pct[1]),
+                     fontsize=7)
+    ax_b1.set_title('Ordination ({0}) by lineage'.format(ordination.upper()),
+                    fontsize=8)
+    ax_b1.legend(fontsize=5, ncol=2, framealpha=0.9)
+    ax_b1.tick_params(labelsize=6)
+    despine(ax_b1)
+
+    # --- B2: relative (Fst) vs absolute (dxy) divergence ---------------------
+    fst = pairwise_fst(stats)
+    dxy = pairwise_dxy(stats)
+    fst_disp = np.where(np.isfinite(fst), np.clip(fst, 0, None), np.nan)
+    heatmap(ax_in(x_right, row_top(3), hm_w, row_h), fst_disp, 'viridis',
+            '{0:.2f}', 'Pairwise Fst (Hudson, relative)')
+    heatmap(ax_in(x_right + hm_x2, row_top(3), hm_w, row_h), dxy, 'cividis',
+            '{0:.3f}', 'Pairwise dxy (absolute)')
+
+    # --- B3: SNP diagnostics (fixed differences + private alleles) -----------
     priv = private_alleles(stats)
-    fixed_diff, priv_pair = pairwise_matrices(stats)
-    ax_pc = ax_in(x_right, y_cur, right_w * 0.46, panel_h[1])
+    fixed_diff, _ = pairwise_matrices(stats)
+    heatmap(ax_in(x_right, row_top(4), hm_w, row_h), fixed_diff, 'magma',
+            '{0:d}', 'Fixed differences (SNPs)')
+    ax_pc = ax_in(x_right + hm_x2, row_top(4), hm_w, row_h)
     seg = [t - f for t, f in priv]
     fix = [f for _, f in priv]
-    xpos = np.arange(stats['n_clusters'])
+    xpos = np.arange(n_clusters)
     ax_pc.bar(xpos, seg, color=sel_palette, label='private (segregating)')
     ax_pc.bar(xpos, fix, bottom=seg, color=sel_palette, hatch='//',
               edgecolor='black', linewidth=0.3, label='private (fixed)')
@@ -666,103 +902,22 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
     ax_pc.set_ylabel('# alleles', fontsize=7)
     ax_pc.legend(fontsize=5)
     ax_pc.tick_params(labelsize=6)
+    despine(ax_pc)
 
-    ax_pp = ax_in(x_right + right_w * 0.54, y_cur, right_w * 0.46, panel_h[1])
-    pairs = [(a, b) for ai, a in enumerate(range(stats['n_clusters']))
-             for b in range(ai + 1, stats['n_clusters'])]
-    if pairs:
-        xpp = np.arange(len(pairs))
-        priv_a = [priv_pair[a, b] for a, b in pairs]
-        priv_b = [priv_pair[b, a] for a, b in pairs]
-        ax_pp.bar(xpp, priv_a, color=[sel_palette[a] for a, _ in pairs],
-                  label='private to first')
-        ax_pp.bar(xpp, priv_b, bottom=priv_a,
-                  color=[sel_palette[b] for _, b in pairs], alpha=0.6,
-                  label='private to second')
-        ax_pp.set_xticks(xpp)
-        ax_pp.set_xticklabels(['C{0}-C{1}'.format(clusters[a], clusters[b])
-                               for a, b in pairs], fontsize=6, rotation=90)
-    ax_pp.set_title('Private alleles per cluster pair', fontsize=8)
-    ax_pp.tick_params(labelsize=6)
-
-    # --- (c) pairwise Fst heatmap --------------------------------------------
-    y_cur += panel_h[1] + 0.5
-    ax_fst = ax_in(x_right, y_cur, right_w * 0.46, panel_h[2])
-    fst = pairwise_fst(stats)
-    disp = np.where(np.isfinite(fst), np.clip(fst, 0, None), np.nan)
-    image = ax_fst.imshow(disp, cmap='viridis')
-    ax_fst.set_xticks(range(stats['n_clusters']))
-    ax_fst.set_yticks(range(stats['n_clusters']))
-    ax_fst.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
-    ax_fst.set_yticklabels(cluster_labels, fontsize=6)
-    for a in range(stats['n_clusters']):
-        for b in range(stats['n_clusters']):
-            if np.isfinite(fst[a, b]):
-                ax_fst.text(b, a, '{0:.2f}'.format(fst[a, b]), ha='center',
-                            va='center', fontsize=5,
-                            color='white' if disp[a, b] > np.nanmax(disp) / 2
-                            else 'black')
-    ax_fst.set_title('Pairwise Fst (Hudson)', fontsize=8)
-    fig.colorbar(image, ax=ax_fst, fraction=0.046, pad=0.04)
-
-    # --- (d) fixed-difference matrix -----------------------------------------
-    ax_fd = ax_in(x_right + right_w * 0.54, y_cur, right_w * 0.46, panel_h[2])
-    fd_disp = fixed_diff.astype(float)
-    np.fill_diagonal(fd_disp, np.nan)
-    image2 = ax_fd.imshow(fd_disp, cmap='magma')
-    ax_fd.set_xticks(range(stats['n_clusters']))
-    ax_fd.set_yticks(range(stats['n_clusters']))
-    ax_fd.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
-    ax_fd.set_yticklabels(cluster_labels, fontsize=6)
-    for a in range(stats['n_clusters']):
-        for b in range(stats['n_clusters']):
-            if a != b:
-                ax_fd.text(b, a, str(fixed_diff[a, b]), ha='center',
-                           va='center', fontsize=5, color='0.9')
-    ax_fd.set_title('Fixed differences', fontsize=8)
-    fig.colorbar(image2, ax=ax_fd, fraction=0.046, pad=0.04)
-
-    # --- (e) ordination scatter ----------------------------------------------
-    y_cur += panel_h[2] + 0.5
-    ax_ord = ax_in(x_right, y_cur, right_w, panel_h[4])
-    coords, pct = ordinate(data['dosage'], dist, ordination)
-    for ci, c in enumerate(clusters):
-        member = labels == c
-        ax_ord.scatter(coords[member, 0], coords[member, 1], s=14,
-                       color=sel_palette[ci], edgecolor='none',
-                       label='C{0}'.format(c))
-    ax_ord.set_xlabel('{0}1 ({1:.1f}%)'.format(ordination.upper(), pct[0]),
-                      fontsize=7)
-    ax_ord.set_ylabel('{0}2 ({1:.1f}%)'.format(ordination.upper(), pct[1]),
-                      fontsize=7)
-    ax_ord.set_title('Ordination ({0})'.format(ordination.upper()), fontsize=8)
-    ax_ord.legend(fontsize=5, ncol=2)
-    ax_ord.tick_params(labelsize=6)
-    for spine in ('top', 'right'):
-        ax_ord.spines[spine].set_visible(False)
-
-    # --- (f) per-cluster diversity -------------------------------------------
-    y_cur += panel_h[4] + 0.5
-    ax_div = ax_in(x_right, y_cur, right_w, panel_h[5])
-    het_obs, poly = cluster_diversity(data['state_code'], data['state_is_hom'],
-                                      labels, stats)
-    xpos = np.arange(stats['n_clusters'])
-    ax_div.bar(xpos - 0.2, het_obs, 0.4, color=sel_palette, label='Ho')
-    ax_div.set_ylabel('Observed heterozygosity', fontsize=7)
-    ax_div.set_xticks(xpos)
-    ax_div.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
-    ax_div.tick_params(labelsize=6)
-    ax_poly = ax_div.twinx()
-    ax_poly.bar(xpos + 0.2, poly, 0.4, color='0.6', label='% polymorphic')
-    ax_poly.set_ylabel('% polymorphic sites', fontsize=7)
-    ax_poly.tick_params(labelsize=6)
-    ax_div.set_title('Per-cluster diversity', fontsize=8)
-    lines = (ax_div.get_legend_handles_labels()[0]
-             + ax_poly.get_legend_handles_labels()[0])
-    labs = (ax_div.get_legend_handles_labels()[1]
-            + ax_poly.get_legend_handles_labels()[1])
-    ax_div.legend(lines, labs, fontsize=5, loc='upper center', ncol=2,
-                  framealpha=0.9)
+    # --- B4 (optional): shared / unique loci from an ipyrad .loci file -------
+    if loci_presence is not None:
+        _, private_loci, jaccard = locus_sharing_stats(loci_presence, labels,
+                                                       names)
+        ax_lp = ax_in(x_right, row_top(5), hm_w, row_h)
+        ax_lp.bar(np.arange(n_clusters), private_loci, color=sel_palette)
+        ax_lp.set_xticks(np.arange(n_clusters))
+        ax_lp.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
+        ax_lp.set_title('Private loci per cluster', fontsize=8)
+        ax_lp.set_ylabel('# loci (only this cluster)', fontsize=6)
+        ax_lp.tick_params(labelsize=6)
+        despine(ax_lp)
+        heatmap(ax_in(x_right + hm_x2, row_top(5), hm_w, row_h), jaccard,
+                'YlGnBu', '{0:.2f}', 'Shared loci (Jaccard)')
 
     fig.savefig(pdf_filename, format='pdf')
     plt.close(fig)
@@ -799,7 +954,8 @@ def cluster_size_map(labels, clusters):
 # --------------------------------------------------------------------------- #
 def main(vcf_filename, pop_filename, output_filename, method, max_k,
          min_cluster_size, force_k, tree_mode, ordination,
-         clone_list, clone_threshold, auto_clone, make_pdf, pdf_output):
+         clone_list, clone_threshold, auto_clone, loci_filename,
+         make_pdf, pdf_output):
 
     print('###1 - Loading VCF (method: {0})'.format(method))
     if not vcf_filename:
@@ -875,6 +1031,7 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
     priv = private_alleles(stats)
     fixed_diff, _ = pairwise_matrices(stats)
     fst = pairwise_fst(stats)
+    dxy = pairwise_dxy(stats)
     het_obs, poly = cluster_diversity(data['state_code'],
                                       data['state_is_hom'], labels, stats)
     sizes = cluster_size_map(labels, clusters)
@@ -895,11 +1052,38 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
                 cells.append('{0:>7}'.format('{0:.3f}'.format(fst[a, b])
                              if fst[a, b] == fst[a, b] else 'NA'))
         print('C{0:>4} '.format(ca) + ' '.join(cells))
+    print('Pairwise dxy (absolute divergence):')
+    for a, ca in enumerate(clusters):
+        cells = []
+        for b in range(len(clusters)):
+            if a == b:
+                cells.append('{0:>7}'.format('-'))
+            else:
+                cells.append('{0:>7}'.format('{0:.4f}'.format(dxy[a, b])
+                             if dxy[a, b] == dxy[a, b] else 'NA'))
+        print('C{0:>4} '.format(ca) + ' '.join(cells))
     print('Fixed differences:')
     for a, ca in enumerate(clusters):
         cells = ['{0:>7}'.format('-' if a == b else int(fixed_diff[a, b]))
                  for b in range(len(clusters))]
         print('C{0:>4} '.format(ca) + ' '.join(cells))
+
+    # Optional ipyrad .loci shared/unique loci
+    loci_presence = None
+    if loci_filename:
+        loci_presence, n_matched = parse_loci_presence(loci_filename,
+                                                       data['names'])
+        if n_matched < 3:
+            sys.stderr.write('Warning: only {0} `.loci` sample(s) match the VCF;'
+                             ' skipping locus analysis.\n'.format(n_matched))
+            loci_presence = None
+        else:
+            lcl, lpriv, _ = locus_sharing_stats(loci_presence, labels,
+                                                data['names'])
+            print('Shared/unique loci ({0} loci, {1} samples matched):'.format(
+                len(loci_presence), n_matched))
+            for ci, c in enumerate(lcl):
+                print('  C{0}: {1} private loci'.format(c, int(lpriv[ci])))
 
     print('\n###6 - Output files')
     csv_filename, pdf_filename = derive_outputs(output_filename, vcf_filename,
@@ -915,7 +1099,8 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
         try:
             write_pdf_report(sim, dist, linkage_matrix, data['names'], records,
                              display_max, selected, perc_genotyped, data,
-                             method, tree_mode, ordination, pdf_filename)
+                             method, tree_mode, ordination, pdf_filename,
+                             loci_presence=loci_presence)
         except Exception as error:
             sys.stderr.write('Warning: PDF report failed ({0})\n'.format(error))
 
@@ -968,6 +1153,11 @@ if __name__ == '__main__':
     parser.add_argument('--ordination', dest='ordination', default='pca',
                         choices=('pca', 'pcoa'),
                         help='ordination for the scatter panel (default: pca)')
+    parser.add_argument('--loci', dest='loci_filename', metavar='loci_file',
+                        default=None,
+                        help='optional ipyrad `.loci` file; adds a shared/unique '
+                             'loci panel (private loci per cluster + pairwise '
+                             'Jaccard of recovered loci)')
     parser.add_argument('--pdf-output', dest='pdf_output', default=None,
                         metavar='pdf_file', help='filename for the PDF report')
     parser.add_argument('--no-pdf', dest='no_pdf', action='store_true',
@@ -976,5 +1166,5 @@ if __name__ == '__main__':
     main(args.vcf_filename, args.pop_filename, args.output_filename,
          args.method, args.max_k, args.min_cluster_size,
          args.force_k, args.tree_mode, args.ordination, args.clone_list,
-         args.clone_threshold, args.auto_clone, make_pdf=not args.no_pdf,
-         pdf_output=args.pdf_output)
+         args.clone_threshold, args.auto_clone, args.loci_filename,
+         make_pdf=not args.no_pdf, pdf_output=args.pdf_output)

@@ -123,7 +123,10 @@ def clone_correct(data, method, clone_list_file, clone_threshold, auto_clone):
         info = ('supplied --clone-list `{0}` ({1} of its samples present)'
                 .format(clone_list_file, len(remove)))
     elif clone_threshold is not None or auto_clone:
-        comparisons = vcf_clone_detect.build_comparisons(data, {}, method)
+        match_mat, both_mat, geno_count = vcf_clone_detect.compute_pair_matrices(
+            data, method)
+        comparisons = vcf_clone_detect.comparisons_for_indices(
+            names, match_mat, both_mat, geno_count, {}, range(len(names)))
         if clone_threshold is not None:
             threshold = float(clone_threshold)
             source = 'manual --clone-threshold'
@@ -1013,7 +1016,7 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
         print('C{0} ({1}): {2}'.format(cluster, len(members),
                                        ', '.join(members)))
     if pop_filename:
-        indivs_pops = vcf_clone_detect.get_pop_assignments_from_popfile(
+        indivs_pops, _ = vcf_clone_detect.get_assignments_from_popfile(
             pop_filename)
         print('\nCluster x population cross-tabulation:')
         for cluster in clusters:

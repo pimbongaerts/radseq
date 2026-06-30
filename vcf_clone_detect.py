@@ -1,72 +1,102 @@
 #!/usr/bin/env python
 """
-Attempts to identify groups of clones in a dataset. The script
-(1) conducts pairwise comparisons (genetic similarity) for all individuals in
-a `.vcf` file,
-(2) produces a histogram of genetic similarities,
-(3) lists the highest matches to assess for a potential clonal threshold,
-(4) clusters the groups of clones based on a particular threshold (supplied or
-roughly inferred),
-(5) lists the clonal individuals that can be removed from the dataset
-(so that one individual with the least amount of missing data remains), and
-(6) produces a multi-panel PDF report (NJ tree with clone groups highlighted +
-per-sample % genotyped bars + within/between-population similarity histograms).
+Identify groups of clones (near-identical samples) in a `.vcf` dataset. The
+script:
+ (1) computes a pairwise genetic similarity between every pair of individuals,
+ (2) prints a text histogram of those similarities,
+ (3) lists the highest-similarity pairs and, unless --threshold is given,
+     infers a candidate clonal threshold (see "Threshold inference" below),
+ (4) clusters individuals into clonal groups at the threshold,
+ (5) lists, per group, the members to remove so that the member with the most
+     genotyped loci is retained, and
+ (6) writes an A4 PDF report: a neighbour-joining tree with clonal groups
+     coloured and a per-sample % genotyped bar panel, plus similarity
+     histograms (full, and zoomed to the threshold).
 
-If optional popfile is given, then clonal groups are sorted by population and
-the histogram contrasts within- vs between-population comparisons.
+Usage is two-step. First compute and save the pairwise comparisons from a VCF:
+    vcf_clone_detect.py --vcf data.vcf --pop pops.txt --output compare.csv
+Then re-threshold without recomputing by reading that file back:
+    vcf_clone_detect.py --input compare.csv --threshold 94.5
+A popfile (sample, population per line) sets the matrix/tree order and splits
+the histograms into within- vs between-population comparisons.
 
-Note: Firstly, the script is run with a `.vcf` file and an optional popfile
-to produce an output file (e.g. `python3 vcf_clone_detect.py --vcf
-vcf_file.vcf --pop pop_file.txt --output compare_file.csv`). Secondly, it can
-be rerun using the precalculated similarities under different thresholds
-(e.g. `python3 vcf_clone_detect.py --input compare_file.csv --threshold 94.5`).
+Similarity measures (--method)
+------------------------------
+Each measure is computed only over sites genotyped in both individuals of a
+pair, and reported as a 0-100 % similarity (100 = identical). The tree distance
+is 1 - similarity/100. da, db are alt-allele dosages (0, 1, 2).
 
-Several similarity measures are available via `--method` (default `ibs`, which
-reproduces the original allelic-similarity behaviour exactly). `het-masked` and
-`dosage` give a sharper clone/non-clone boundary; `single-read` (AD-weighted
-when allelic depths are present) is robust to genotype-call artifacts and gives
-cleaner deep topology, but is NOT recommended for clone thresholds.
+  ibs          (default) Mean allele-sharing per site: score 1 if the two
+               genotypes are identical, 0.5 if they share one allele, 0 if they
+               share none (a heterozygote pair scores 1). Equals PLINK
+               `--distance 1-ibs flat-missing` (and the default
+               `--distance`/`allele-ct`, rescaled).
 
-Similarity measures and their PLINK / ANGSD correspondence
-----------------------------------------------------------
-All measures are reported as a 0-100 % similarity over sites genotyped in both
-individuals (pairwise-complete); the genetic distance used for the tree is
-`1 - similarity/100`. `da`, `db` are alt-allele dosages (0, 1, 2).
+  het-masked   As ibs but using only sites where BOTH individuals are
+               homozygous; the per-site score is 1 if the genotypes are
+               identical, else 0. No PLINK/ANGSD equivalent.
 
-  ibs          Allele-sharing IBS: per-site score `1 - |da-db|/2` (het-vs-het
-               counts as a full match). This is the L1 / allele-count family.
-               Equivalent to PLINK `--distance 1-ibs flat-missing` (verified
-               identical to rounding), and to PLINK's default
-               `--distance` / `allele-ct` output (same metric, rescaled to
-               `n_variants * mean|da-db|`).
+  dosage       Mean squared dosage difference per site, 1 - (da-db)^2 / dmax^2
+               (dmax = maximum dosage, 2 for biallelic data). Squared-Euclidean
+               distance on dosage; equals PLINK `--make-rel cov` via
+               sum((da-db)^2) = M*(Cjj+Ckk-2*Cjk). Not the standardised GRM.
 
-  dosage       Squared-Euclidean (L2) distance on allele dosage: per-site
-               `1 - (da-db)^2 / max_sq`. Corresponds to PLINK `--make-rel cov`
-               (centred covariance): `sum (da-db)^2 == M * (Cjj + Ckk - 2*Cjk)`
-               (verified identical to rounding). NOT the same as the default,
-               allele-frequency-standardised GRM (`--make-rel`), and NOT a
-               PLINK `--distance` flavour.
+  single-read  Mean of p1 + p2 - 2*p1*p2 per site, where p is the alt-allele
+               fraction: alt/(ref+alt) from the AD field when present, otherwise
+               the genotype dosage/2. This is the expected mismatch when one
+               allele is drawn at random from each individual; it emulates ANGSD
+               `-doIBS 1 -makeMatrix 1`. With called genotypes a heterozygote
+               pair has an expected per-site mismatch of 0.5. (ANGSD itself
+               needs read-level data; this approximates it from a VCF.)
 
-  single-read  Emulates ANGSD `-doIBS 1 -makeMatrix 1` (single-read / random
-               haploid sampling). Expected per-site mismatch `p1 + p2 - 2*p1*p2`
-               where p is the alt fraction (AD-weighted alt/(ref+alt) when the
-               AD field is present, else the called-genotype dosage/2). Differs
-               from `ibs` only in that het-vs-het has an expected distance of
-               0.5 rather than 0. NB: true ANGSD single-read needs read-level
-               data (BAM/genotype likelihoods); this approximates it from a VCF.
+With --method ibs the result matches the previous version of this script
+exactly. PLINK/ANGSD equivalences are exact only on identical SNP sets: this
+script uses pairwise-complete sites while PLINK/ANGSD apply their own
+missing-data scaling, so values can differ slightly when data are missing.
 
-  het-masked   Homozygous-only IBS (heterozygous sites ignored). No direct
-               PLINK/ANGSD equivalent.
+Threshold inference (when --threshold is not given)
+---------------------------------------------------
+Pairs are sorted by descending similarity. Considering only pairs at or above
+85 %, the largest drop in similarity between two consecutive pairs is taken as
+the clone/non-clone break. The threshold is the integer part of the similarity
+just above that drop if that integer lies within the drop, otherwise the
+midpoint of the drop. This heuristic assumes clones form a tight cluster at the
+top of the distribution and is calibrated to the ibs %-scale; for the other
+measures, or whenever the inferred value looks wrong, set --threshold.
 
-Correspondences hold on matching SNP sets: this script uses pairwise-complete
-sites, whereas PLINK/ANGSD apply their own missing-data scaling, so values can
-drift slightly on data with missing genotypes (the underlying metric is the
-same).
+Multiple cryptic lineages
+-------------------------
+When a dataset contains several genetic lineages, a single clonal threshold is
+unreliable: each lineage has a different similarity distribution (different
+informative-SNP counts and per-pair denominators), so clones are best called
+within each lineage on its own scale. Two ways to do this:
+  - Supply a 3-column popfile (sample, population, lineage): clone detection
+    runs independently within each lineage, each with its own histogram and
+    inferred/supplied threshold.
+  - Or give `-k/--n-lineages K`: the dataset is split into K lineages by
+    average-linkage clustering of this script's own distance matrix (which is
+    clone-robust, unlike STRUCTURE/SNAPCLUST), the inferred 3-column popfile is
+    written to `<base>_lineages.txt` for review, and detection then runs per
+    lineage.
+Each lineage gets its own comparison CSV and PDF; a combined list of all
+samples to remove across the dataset is written to `<base>_clones_remove.txt`.
+`--no-lineage` forces a single global run. Only within-lineage pairs are ever
+eligible to be clones. The comparison CSV is always written (default name from
+the input basename if `--output` is omitted).
+
+Output columns (--output / --input CSV)
+---------------------------------------
+ind1, ind2, ind1_snps, ind2_snps, both_snps, match, match_perc, pop.
+ind1_snps/ind2_snps: each sample's genotyped-loci count. both_snps: number of
+sites the chosen measure used for the pair (genotyped in both; for het-masked,
+homozygous in both; for AD-based single-read, with reads in both). match: summed
+per-site similarity score over those sites; match_perc = round(100 * match /
+both_snps, 2). pop: the shared population, 'popA-popB' for a between-population
+pair, or 'NA'.
 """
 import sys
 import os
 import argparse
-import operator
 import itertools
 import math
 import numpy as np
@@ -87,6 +117,22 @@ DEF_THRESHOLD = 85.0
 
 METHODS = ('ibs', 'het-masked', 'dosage', 'single-read')
 DEFAULT_METHOD = 'ibs'
+
+# Popfile columns (3rd column = genetic lineage is optional)
+COL_INDIV = 0
+COL_POP = 1
+COL_LINEAGE = 2
+
+# Default output suffixes (used when --output is not given)
+COMPARE_SUFFIX = '_compare.csv'
+PDF_SUFFIX = '_clones.pdf'
+REMOVE_SUFFIX = '_clones_remove.txt'
+LINEAGES_SUFFIX = '_lineages.txt'
+
+# PDF report font sizes (standardised across the three panels)
+FS_TITLE = 9
+FS_LABEL = 8
+FS_TICK = 7
 
 C_IND1 = 'ind1'
 C_IND2 = 'ind2'
@@ -172,7 +218,9 @@ class CloneGroup(object):
 
 
 def get_snp_match(genotype1, genotype2):
-    """ Get match value for two genotypes (one SNP) [reference implementation] """
+    """ Allele-sharing score for two genotypes at one SNP: 1 if identical,
+    0.5 if they share an allele, 0 otherwise. Used to build the per-state score
+    matrix for the vectorised `ibs` computation. """
     if genotype1 == genotype2:
         match_score = 1
     elif genotype1[0] == genotype2[0] or genotype1[2] == genotype2[2] or \
@@ -183,18 +231,22 @@ def get_snp_match(genotype1, genotype2):
     return match_score
 
 
-def get_pop_assignments_from_popfile(pop_filename):
-    """ Initialise dict of pops with lists of indvs from popfile """
+def get_assignments_from_popfile(pop_filename):
+    """ Read a (tsv/csv) popfile and return (indivs_pops, indivs_lineages).
+    Column 1 = sample, column 2 = population, optional column 3 = genetic
+    lineage. indivs_lineages is empty when no 3rd column is present. """
     indivs_pops = {}
-    pop_file = open(pop_filename, 'r')
-    for line in pop_file:
-        cols = line.rstrip().replace(',', ' ').split()
-        if not cols:
-            continue
-        indiv = cols[0]
-        pop = cols[1]
-        indivs_pops[indiv] = pop
-    return indivs_pops
+    indivs_lineages = {}
+    with open(pop_filename, 'r') as pop_file:
+        for line in pop_file:
+            cols = line.rstrip().replace(',', ' ').split()
+            if not cols:
+                continue
+            indiv = cols[COL_INDIV]
+            indivs_pops[indiv] = cols[COL_POP] if len(cols) > COL_POP else 'NA'
+            if len(cols) > COL_LINEAGE:
+                indivs_lineages[indiv] = cols[COL_LINEAGE]
+    return indivs_pops, indivs_lineages
 
 
 def get_pop_group(individual1, individual2, indivs_pops):
@@ -419,19 +471,24 @@ def _match_denom_matrices(data, method):
     return match, denom
 
 
-def build_comparisons(data, indivs_pops, method):
-    """ Build the structured comparisons array (same schema as original) using
-    vectorised, method-aware similarity computation. """
-    names = data['names']
-    n = len(names)
+def compute_pair_matrices(data, method):
+    """ Compute the global NxN match/both matrices once, plus per-sample
+    genotyped-loci counts (== ind*_snps). """
     match_mat, both_mat = _match_denom_matrices(data, method)
-    # per-sample genotyped counts (== ind*_snps in the original)
     geno_count = (data['state_code'] >= 0).sum(axis=0).astype(np.int64)
+    return match_mat, both_mat, geno_count
 
-    unique_pairs = int((math.pow(n, 2) - n) / 2)
-    comparisons = np.zeros(unique_pairs, dtype=COMPARISONS_DTYPES)
+
+def comparisons_for_indices(names, match_mat, both_mat, geno_count,
+                            indivs_pops, indices):
+    """ Build the structured comparisons array for all pairs within `indices`
+    (column positions into the global matrices). With indices = range(n) this
+    reproduces the original all-pairs output exactly. """
+    indices = list(indices)
+    npairs = len(indices) * (len(indices) - 1) // 2
+    comparisons = np.zeros(npairs, dtype=COMPARISONS_DTYPES)
     index = 0
-    for i, j in itertools.combinations(range(n), 2):
+    for i, j in itertools.combinations(indices, 2):
         ind1, ind2 = names[i], names[j]
         match = float(match_mat[i, j])
         both = int(round(both_mat[i, j]))
@@ -443,8 +500,36 @@ def build_comparisons(data, indivs_pops, method):
                               str(get_pop_group(ind1, ind2, indivs_pops)))
         index += 1
     comparisons[::-1].sort(order=C_MATCH_PERC)
-    print('{0} comparisons completed'.format(comparisons.size))
     return comparisons
+
+
+def delimit_lineages(match_mat, both_mat, names, k):
+    """ Partition samples into k lineages by average-linkage (UPGMA) clustering
+    of the pairwise distance (1 - similarity). Returns {sample: 'L<n>'}.
+    Distance is clone-robust, so clones cluster within their lineage rather than
+    distorting the deep splits. """
+    from scipy.cluster.hierarchy import linkage, fcluster
+    from scipy.spatial.distance import squareform
+    n = len(names)
+    with np.errstate(divide='ignore', invalid='ignore'):
+        dist = np.where(both_mat > 0, 1.0 - match_mat / both_mat, 1.0)
+    dist = np.clip(dist, 0.0, None)
+    dist = (dist + dist.T) / 2.0            # enforce exact symmetry
+    np.fill_diagonal(dist, 0.0)
+    linkage_matrix = linkage(squareform(dist, checks=False), method='average')
+    labels = fcluster(linkage_matrix, t=k, criterion='maxclust')
+    return {names[i]: 'L{0}'.format(labels[i]) for i in range(n)}
+
+
+def write_lineage_popfile(filename, names, indivs_pops, lineages):
+    """ Write an inferred 3-column popfile (sample, population, lineage) for
+    review / re-use with --pop. """
+    with open(filename, 'w') as out:
+        for nm in names:
+            out.write('{0}\t{1}\t{2}\n'.format(nm, indivs_pops.get(nm, 'NA'),
+                                               lineages[nm]))
+    sys.stderr.write('Inferred lineage assignments written to {0}\n'.format(
+        filename))
 
 
 def get_pairwise_comparisons_from_input_file(input_filename):
@@ -479,7 +564,6 @@ def save_pairwise_comparisons_to_input_file(output_filename, comparisons,
         header = '{0} {1}\n{2}'.format(NLOCI_COMMENT, n_loci, OUTPUT_FILE_HEADER)
     np.savetxt(output_filename, comparisons, fmt=OUTPUT_FILE_FORMAT,
                header=header)
-    print('Comparisons outputted to file: `{0}`'.format(output_filename))
 
 
 def output_ascii_hist(raw_values, bin_values):
@@ -488,14 +572,13 @@ def output_ascii_hist(raw_values, bin_values):
     output_lines = []
     graph_multiplier = 1
     lower_bound_flag = False
-    previous_value = breakpoint = display_lines = 0
+    lower_bound = upper_bound = 0
     for index, value in enumerate(values):
         if value > 0:
             if not lower_bound_flag:
                 lower_bound_flag = True
                 lower_bound = bins[index]
-            else:
-                upper_bound = bins[index]
+            upper_bound = bins[index]      # last populated bin (>=1 handled)
         if lower_bound_flag:
             graph_bar = '*' * int(value * graph_multiplier)
             if len(graph_bar) > 70:
@@ -504,11 +587,19 @@ def output_ascii_hist(raw_values, bin_values):
             output_lines.append(
                 '{:3d} {:7d} {:70s}'.format(bins[index], value,
                                             graph_bar[:70]))
-    print('\n'.join(output_lines[:(upper_bound - lower_bound + 2)]))
+    if output_lines:
+        print('\n'.join(output_lines[:(upper_bound - lower_bound + 2)]))
 
 
 def output_highest_matches(comparisons, threshold):
-    """ Output list of highest matches """
+    """ Print the highest-similarity pairs and return the threshold to use.
+
+    If `threshold` is 0, it is inferred: scanning pairs from highest similarity
+    down to DEF_THRESHOLD, the largest drop between two consecutive pairs is
+    taken as the clone/non-clone break. The returned threshold is the integer
+    part of the similarity just above that drop when that integer falls within
+    the drop, otherwise the midpoint of the drop. A non-zero `threshold` is
+    used as given (and reported as a manual threshold). """
     extra_rows = last_value = diff = highest_diff = 0
     highest_diff_max_perc = highest_diff_min_perc = 0
     output_lines = []
@@ -548,7 +639,8 @@ def output_highest_matches(comparisons, threshold):
         if int(highest_diff_max_perc) > highest_diff_min_perc:
             threshold = float(int(highest_diff_max_perc))
         else:
-            threshold = (highest_diff_max_perc - highest_diff_min_perc) / 2
+            # Drop spans no integer: use its midpoint (a value inside the gap)
+            threshold = (highest_diff_max_perc + highest_diff_min_perc) / 2
 
     # Output list of matches with a break at the threshold
 
@@ -667,10 +759,13 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
     fig = plt.figure(figsize=(fig_w, fig_h))
 
     # Left half: tree (with a thin bar panel added later, both within x < 0.5)
-    ax_tree = fig.add_axes([0.07, 0.05, 0.27, 0.90])
-    # Right half: two histograms, top half and bottom half
-    ax_hist = fig.add_axes([0.575, 0.565, 0.385, 0.385])   # top-right
-    ax_zoom = fig.add_axes([0.575, 0.075, 0.385, 0.385])   # bottom-right
+    tree_bottom, tree_top = 0.05, 0.95
+    ax_tree = fig.add_axes([0.07, tree_bottom, 0.27, tree_top - tree_bottom])
+    # Right half: two histograms. Top panel's top aligns with the tree top;
+    # bottom panel's bottom (its x-axis) aligns with the tree bottom x-axis.
+    hist_h = 0.385
+    ax_hist = fig.add_axes([0.575, tree_top - hist_h, 0.385, hist_h])
+    ax_zoom = fig.add_axes([0.575, tree_bottom, 0.385, hist_h])
 
     font_size = max(1.0, min(9, 600.0 / n_tips))
     Bio.Phylo.draw(tree, axes=ax_tree,
@@ -678,7 +773,9 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
                    label_func=lambda c: '  ' + c.name if c.name else '',
                    do_show=False)
     ax_tree.set_ylabel('')
-    ax_tree.set_xlabel('Genetic distance (1 - {0} similarity)'.format(method))
+    ax_tree.set_xlabel('Genetic distance (1 - {0} similarity)'.format(method),
+                       fontsize=FS_LABEL)
+    ax_tree.tick_params(labelsize=FS_TICK)
 
     # Recover tip y-positions from the drawn labels
     tip_y = {}
@@ -710,12 +807,12 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
         ax_bar.set_yticks([])
         if is_percentage:
             ax_bar.set_xlim(max(0, vals.min() - 5), 100)
-            ax_bar.set_title('% Genotyped', fontsize=8)
+            ax_bar.set_title('% Genotyped', fontsize=FS_LABEL)
         else:
             ax_bar.set_xlim(0, vals.max() * 1.05)
-            ax_bar.set_title('# SNPs genotyped', fontsize=8)
+            ax_bar.set_title('# SNPs genotyped', fontsize=FS_LABEL)
         ax_bar.xaxis.set_major_locator(plt.MaxNLocator(3))
-        ax_bar.tick_params(labelsize=6)
+        ax_bar.tick_params(labelsize=FS_TICK)
         for spine in ('top', 'right'):
             ax_bar.spines[spine].set_visible(False)
 
@@ -725,27 +822,29 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
     is_between = np.array(['-' in p for p in pops])
     is_within = np.array([(p != 'NA' and '-' not in p) for p in pops])
 
-    def draw_hist(ax, bins):
+    def draw_hist(ax, bins, log=False):
         if has_popfile and is_within.any():
             ax.hist(perc[is_between], bins=bins, color='0.6', alpha=0.8,
-                    label='Between populations')
+                    log=log, label='Between populations')
             ax.hist(perc[is_within], bins=bins, color='#1f6f6f', alpha=0.7,
-                    label='Within populations')
+                    log=log, label='Within populations')
         else:
-            ax.hist(perc, bins=bins, color='0.5', alpha=0.85,
+            ax.hist(perc, bins=bins, color='0.5', alpha=0.85, log=log,
                     label='All pairs')
         for spine in ('top', 'right'):
             ax.spines[spine].set_visible(False)
-        ax.set_xlabel('Genetic similarity (%)', fontsize=8)
-        ax.set_ylabel('Pairwise comparisons', fontsize=8)
-        ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
-        ax.tick_params(labelsize=7)
+        ax.set_xlabel('Genetic similarity (%)', fontsize=FS_LABEL)
+        ax.set_ylabel('Pairwise comparisons', fontsize=FS_LABEL)
+        if not log:
+            ax.yaxis.set_major_locator(plt.MaxNLocator(integer=True))
+        ax.tick_params(labelsize=FS_TICK)
 
     def add_threshold_line(ax):
         ax.axvline(threshold, color='red', linestyle='--', linewidth=1)
         ax.text(threshold, ax.get_ylim()[1] * 0.98,
                 ' threshold = {0}%'.format(round(threshold, 2)),
-                color='red', fontsize=7, ha='left', va='top', rotation=90)
+                color='red', fontsize=FS_TICK, ha='left', va='top',
+                rotation=90)
 
     def series_peak(lo, hi, width=0.5):
         """ Tallest single-series bar count within [lo, hi] """
@@ -763,20 +862,26 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
 
     valid = perc[np.isfinite(perc)]
     lo_all = math.floor(valid.min()) if valid.size else 0
-    draw_hist(ax_hist, np.linspace(lo_all, 100, max(20, int(100 - lo_all))))
-    ax_hist.legend(fontsize=7, loc='upper left', framealpha=0.9)
-    ax_hist.set_title('All pairwise comparisons', fontsize=9)
+    # Top panel: log y-scale so the few clonal pairs on the right are visible
+    # against the much larger non-clone bulk.
+    draw_hist(ax_hist, np.linspace(lo_all, 100, max(20, int(100 - lo_all))),
+              log=True)
+    ax_hist.legend(fontsize=FS_TICK, loc='upper left', framealpha=0.9)
+    ax_hist.set_title('All pairwise comparisons', fontsize=FS_TITLE)
     add_threshold_line(ax_hist)
 
-    # Zoomed: a small margin below the threshold up to 100%, with the y-axis
-    # capped to the clone peak (counts at/above threshold) so it is legible
-    # even though the bulk just below threshold is far taller (it is clipped).
-    zoom_lo = max(lo_all, threshold - 1)
+    # Bottom panel: zoom from the upper tail of the sub-threshold peak up to
+    # 100%, with the y-axis capped to the clone-region peak so clones are
+    # legible (the much taller bulk tail clips at the top).
+    nonclone = perc[(perc < threshold) & np.isfinite(perc)]
+    tail_edge = np.percentile(nonclone, 95) if nonclone.size else threshold - 1
+    zoom_lo = min(tail_edge, threshold - 0.5)        # show some sub-threshold tail
+    zoom_lo = max(zoom_lo, threshold - 8, lo_all)    # but not the whole distribution
     draw_hist(ax_zoom, np.arange(zoom_lo, 100.0 + 0.5, 0.5))
     ax_zoom.set_xlim(zoom_lo, 100)
     clone_peak = series_peak(threshold, 100.0)
     ax_zoom.set_ylim(0, clone_peak * 1.4)
-    ax_zoom.set_title('Zoomed to clonal threshold', fontsize=9)
+    ax_zoom.set_title('Zoomed to clonal threshold', fontsize=FS_TITLE)
     add_threshold_line(ax_zoom)
 
     fig.savefig(pdf_filename, format='pdf')
@@ -784,53 +889,26 @@ def write_pdf_report(comparisons, clone_groups, threshold, perc_genotyped,
     sys.stderr.write('PDF report written to {0}\n'.format(pdf_filename))
 
 
-def derive_pdf_filename(vcf_filename, input_filename, output_filename,
-                        pdf_output):
-    """ Decide the PDF output filename """
-    if pdf_output:
-        return pdf_output
-    base = None
+def derive_base(vcf_filename, input_filename, output_filename):
+    """ Basename (no extension) for deriving default output filenames """
     for candidate in (output_filename, vcf_filename, input_filename):
         if candidate:
-            base = os.path.splitext(candidate)[0]
-            break
-    if base is None:
-        base = 'clone_detect'
-    return base + '_clones.pdf'
+            return os.path.splitext(candidate)[0]
+    return 'clone_detect'
 
 
-def main(vcf_filename, input_filename, output_filename, pop_filename,
-         threshold, method=DEFAULT_METHOD, make_pdf=True, pdf_output=None):
-
-    print('###1 - Pairwise comparisons of all individuals')
-
-    n_loci = None
-    perc_genotyped = None
-    is_percentage = False
-
-    # Input data (vcf_file or input_file)
-    if vcf_filename:
-        if pop_filename:
-            indivs_pops = get_pop_assignments_from_popfile(pop_filename)
-        else:
-            indivs_pops = {}
-        need_ad = (method == 'single-read')
-        data = load_vcf_arrays(vcf_filename, need_ad=need_ad)
-        if data['multiallelic']:
-            sys.stderr.write('Warning: multiallelic sites present; `dosage` '
-                             'and `single-read` treat alt-allele counts only.\n')
-        comparisons = build_comparisons(data, indivs_pops, method)
-        n_loci = data['n_loci']
-    elif input_filename:
-        comparisons = get_pairwise_comparisons_from_input_file(input_filename)
-        n_loci = read_nloci_from_input_file(input_filename)
-    else:
-        sys.exit('Error: Please provide either a vcf_file or input_file.')
-
-    # Output data (as input_file)
+def analyze_set(comparisons, threshold, method, n_loci, make_pdf,
+                pdf_filename, output_filename, has_popfile):
+    """ Run sections 1-6 on one set of comparisons (whole dataset or one
+    lineage). Returns (threshold_used, clone_groups, removed_samples). """
+    # 1 - always save the comparisons (skip only when no path is available)
     if output_filename:
         save_pairwise_comparisons_to_input_file(output_filename, comparisons,
                                                 n_loci=n_loci)
+        print('###1 - Pairwise comparisons: written to {0}'.format(
+            output_filename))
+    else:
+        print('###1 - Pairwise comparisons: {0} pairs'.format(comparisons.size))
 
     print('\n###2 - Histogram (of pairwise genetic similarities)')
     output_ascii_hist(comparisons[C_MATCH_PERC], HIST_RANGE)
@@ -845,22 +923,111 @@ def main(vcf_filename, input_filename, output_filename, pop_filename,
 
     print(('\n###5 - Individuals to remove from dataset (retaining indiv'
            ' with least amount of missing data)'))
+    removed = []
     for clone_group in clone_groups:
-        print('\n'.join(clone_group.get_samples_to_remove()))
+        samples = clone_group.get_samples_to_remove()
+        removed.extend(samples)
+        print('\n'.join(samples))
 
-    # PDF report (section 6)
     if make_pdf:
         perc_genotyped, is_percentage = get_perc_genotyped(comparisons, n_loci)
-        pdf_filename = derive_pdf_filename(vcf_filename, input_filename,
-                                           output_filename, pdf_output)
         print('\n###6 - PDF report: {0}'.format(pdf_filename))
         try:
             write_pdf_report(comparisons, clone_groups, float(threshold),
                              perc_genotyped, is_percentage, method,
-                             bool(pop_filename) or _has_pop_info(comparisons),
-                             pdf_filename)
+                             has_popfile, pdf_filename)
         except Exception as e:
             sys.stderr.write('Warning: PDF report failed ({0})\n'.format(e))
+    return threshold, clone_groups, removed
+
+
+def main(vcf_filename, input_filename, output_filename, pop_filename,
+         threshold, method=DEFAULT_METHOD, make_pdf=True, pdf_output=None,
+         n_lineages=None, no_lineage=False):
+
+    base = derive_base(vcf_filename, input_filename, output_filename)
+
+    # --- Re-run from a precomputed comparison file (single global set) ---
+    if input_filename and not vcf_filename:
+        comparisons = get_pairwise_comparisons_from_input_file(input_filename)
+        n_loci = read_nloci_from_input_file(input_filename)
+        pdf = pdf_output or (base + PDF_SUFFIX)
+        analyze_set(comparisons, threshold, method, n_loci, make_pdf, pdf,
+                    output_filename, _has_pop_info(comparisons))
+        return
+
+    if not vcf_filename:
+        sys.exit('Error: Please provide either a vcf_file or input_file.')
+
+    # --- Compute pairwise matrices from the VCF (once) ---
+    indivs_pops, indivs_lineages = ({}, {})
+    if pop_filename:
+        indivs_pops, indivs_lineages = get_assignments_from_popfile(pop_filename)
+    need_ad = (method == 'single-read')
+    data = load_vcf_arrays(vcf_filename, need_ad=need_ad)
+    if data['multiallelic']:
+        sys.stderr.write('Warning: multiallelic sites present; `dosage` '
+                         'and `single-read` treat alt-allele counts only.\n')
+    names = data['names']
+    n_loci = data['n_loci']
+    name_to_col = {nm: i for i, nm in enumerate(names)}
+    match_mat, both_mat, geno_count = compute_pair_matrices(data, method)
+    has_pop = bool(indivs_pops)
+
+    # --- Decide lineage assignments (supplied, inferred, or none) ---
+    lineages = None
+    if not no_lineage:
+        if indivs_lineages:
+            lineages = {nm: indivs_lineages.get(nm, 'NA') for nm in names}
+        elif n_lineages and n_lineages > 1:
+            lineages = delimit_lineages(match_mat, both_mat, names, n_lineages)
+            write_lineage_popfile(base + LINEAGES_SUFFIX, names, indivs_pops,
+                                  lineages)
+
+    # --- Single global run (no lineages) ---
+    if not lineages:
+        comparisons = comparisons_for_indices(names, match_mat, both_mat,
+                                              geno_count, indivs_pops,
+                                              range(len(names)))
+        out_csv = output_filename or (base + COMPARE_SUFFIX)
+        pdf = pdf_output or (base + PDF_SUFFIX)
+        analyze_set(comparisons, threshold, method, n_loci, make_pdf, pdf,
+                    out_csv, has_pop)
+        return
+
+    # --- Per-lineage runs ---
+    groups = {}
+    for nm in names:
+        groups.setdefault(lineages[nm], []).append(nm)
+    sys.stderr.write('Lineage mode: {0} lineages ({1})\n'.format(
+        len(groups), ', '.join('{0}={1}'.format(k, len(v))
+                               for k, v in sorted(groups.items()))))
+    all_removed = []
+    for lineage in sorted(groups):
+        members = groups[lineage]
+        print('\n========== Lineage {0} ({1} samples) =========='.format(
+            lineage, len(members)))
+        if len(members) < 2:
+            print('(skipped: fewer than 2 samples)')
+            continue
+        idx = [name_to_col[nm] for nm in members]
+        comparisons = comparisons_for_indices(names, match_mat, both_mat,
+                                              geno_count, indivs_pops, idx)
+        out_csv = '{0}_{1}{2}'.format(base, lineage, COMPARE_SUFFIX)
+        pdf = '{0}_{1}{2}'.format(base, lineage, PDF_SUFFIX)
+        _, _, removed = analyze_set(comparisons, threshold, method, n_loci,
+                                    make_pdf, pdf, out_csv, has_pop)
+        all_removed.extend(removed)
+
+    # --- Combined removal list across lineages ---
+    print('\n========== Combined samples to remove (all lineages) ==========')
+    all_removed = sorted(set(all_removed))
+    print('\n'.join(all_removed))
+    remove_file = base + REMOVE_SUFFIX
+    with open(remove_file, 'w') as out:
+        out.write('\n'.join(all_removed) + ('\n' if all_removed else ''))
+    sys.stderr.write('Combined removal list written to {0}\n'.format(
+        remove_file))
 
 
 def _has_pop_info(comparisons):
@@ -874,45 +1041,44 @@ if __name__ == '__main__':
         description=__doc__,
         formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('-v', '--vcf', dest='vcf_filename', metavar='vcf_file',
-                        help='input file with SNP data (`.vcf`)')
+                        help='input VCF file with SNP data')
     parser.add_argument('-p', '--pop', dest='pop_filename',
                         metavar='pop_file',
-                        help='text file (tsv or csv) with individuals and \
-                              populations (to accompany `.vcf` file)')
+                        help='population file (sample, population[, lineage] per '
+                             'line); a 3rd lineage column enables per-lineage '
+                             'detection')
     parser.add_argument('-i', '--input', dest='input_filename',
                         metavar='compare_file',
-                        help='input file (csv) with previously \
-                        calculated pairwise comparisons (using the \
-                        `--outputfile` option)')
+                        help='read pairwise comparisons from a prior --output '
+                             'CSV instead of a VCF')
     parser.add_argument('-o', '--output', dest='output_filename',
                         metavar='compare_file',
-                        help='output file (csv) for all pairwise comparisons \
-                        (can later be used as input with `--inputfile`)')
+                        help='comparisons CSV (default: derived from input '
+                             'basename; always written)')
     parser.add_argument('-t', '--threshold', dest='threshold',
                         metavar='threshold', default=0.0,
-                        help='manual similarity threshold (e.g. `94.5` means \
-                        at least 94.5 percent allelic similarity for \
-                        individuals to be considered clones)')
+                        help='minimum %% similarity to call two samples clones '
+                             '(default: inferred per set)')
     parser.add_argument('-m', '--method', dest='method', default=DEFAULT_METHOD,
                         choices=METHODS,
-                        help='similarity measure (default: ibs, identical to \
-                        the original allelic similarity). PLINK/ANGSD \
-                        correspondence: ibs = PLINK `--distance 1-ibs \
-                        flat-missing` (and default `--distance`/allele-ct); \
-                        dosage = PLINK `--make-rel cov` (squared-Euclidean, \
-                        NOT the standardised GRM); single-read = ANGSD \
-                        `-doIBS 1 -makeMatrix 1` (AD-weighted if available); \
-                        het-masked has no PLINK/ANGSD equivalent. `het-masked` \
-                        and `dosage` give a sharper clone boundary; \
-                        `single-read` is structure/topology-oriented and NOT \
-                        recommended for clone thresholds (see module docstring)')
+                        help='similarity measure (default: ibs); see above')
+    parser.add_argument('-k', '--n-lineages', dest='n_lineages', type=int,
+                        default=None, metavar='K',
+                        help='delimit K lineages from the distance matrix and '
+                             'run clone detection within each (writes an '
+                             'inferred 3-col popfile); ignored if --pop already '
+                             'has a lineage column')
+    parser.add_argument('--no-lineage', dest='no_lineage', action='store_true',
+                        help='force a single global run even with a 3-col '
+                             'popfile or --n-lineages')
     parser.add_argument('--pdf-output', dest='pdf_output', default=None,
                         metavar='pdf_file',
-                        help='filename for the PDF report (default: derived \
-                        from the vcf/output/input basename)')
+                        help='PDF report filename (default: from input '
+                             'basename; per-lineage names are auto-derived)')
     parser.add_argument('--no-pdf', dest='no_pdf', action='store_true',
-                        help='do not generate the PDF report (text output only)')
+                        help='skip the PDF report (text output only)')
     args = parser.parse_args()
     main(args.vcf_filename, args.input_filename, args.output_filename,
          args.pop_filename, args.threshold, method=args.method,
-         make_pdf=not args.no_pdf, pdf_output=args.pdf_output)
+         make_pdf=not args.no_pdf, pdf_output=args.pdf_output,
+         n_lineages=args.n_lineages, no_lineage=args.no_lineage)

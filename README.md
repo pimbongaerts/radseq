@@ -214,43 +214,135 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	
 
 
-**[vcf_clone_detect.py](vcf_clone_detect.py)** - Attempts to identify groups of clones in a dataset. The script (1) conducts
-pairwise comparisons (allelic similarity) for all individuals in a `.vcf`
-file, (2) produces a histogram of genetic similarities, (3) lists the highest
-matches to assess for a potential clonal threshold, (4) clusters the groups of
-clones based on a particular threshold (supplied or roughly inferred), and (5)
-lists the clonal individuals that can be removed from the dataset (so that one
-individual with the least amount of missing data remains). If optional popfile
-is given, then clonal groups are sorted by population. Note: Firstly, the
-script is run with a `.vcf` file and an optional popfile to produce an output
-file (e.g. `python3 vcf_clone_detect.py.py --vcf vcf_file.vcf --pop
-pop_file.txt --output compare_file.csv`). Secondly, it can be rerun using the
-precalculated similarities under different thresholds (e.g. `python3
-vcf_clone_detect.py.py --input compare_file.csv --threshold 94.5`) *[File did not pass PEP8 check]*
+**[vcf_clone_detect.py](vcf_clone_detect.py)** - Identify groups of clones (near-identical samples) in a `.vcf` dataset. The
+script:
+ (1) computes a pairwise genetic similarity between every pair of individuals,
+ (2) prints a text histogram of those similarities,
+ (3) lists the highest-similarity pairs and, unless --threshold is given,
+     infers a candidate clonal threshold (see "Threshold inference" below),
+ (4) clusters individuals into clonal groups at the threshold,
+ (5) lists, per group, the members to remove so that the member with the most
+     genotyped loci is retained, and
+ (6) writes an A4 PDF report: a neighbour-joining tree with clonal groups
+     coloured and a per-sample % genotyped bar panel, plus similarity
+     histograms (full, and zoomed to the threshold). *[File did not pass PEP8 check]*
 
 	usage: vcf_clone_detect.py [-h] [-v vcf_file] [-p pop_file] [-i compare_file]
                            [-o compare_file] [-t threshold]
+                           [-m {ibs,het-masked,dosage,single-read}] [-k K]
+                           [--no-lineage] [--pdf-output pdf_file] [--no-pdf]
 
-	optional arguments:
+	Usage is two-step. First compute and save the pairwise comparisons from a VCF:
+	    vcf_clone_detect.py --vcf data.vcf --pop pops.txt --output compare.csv
+	Then re-threshold without recomputing by reading that file back:
+	    vcf_clone_detect.py --input compare.csv --threshold 94.5
+	A popfile (sample, population per line) sets the matrix/tree order and splits
+	the histograms into within- vs between-population comparisons.
+	
+	Similarity measures (--method)
+	------------------------------
+	Each measure is computed only over sites genotyped in both individuals of a
+	pair, and reported as a 0-100 % similarity (100 = identical). The tree distance
+	is 1 - similarity/100. da, db are alt-allele dosages (0, 1, 2).
+	
+	  ibs          (default) Mean allele-sharing per site: score 1 if the two
+	               genotypes are identical, 0.5 if they share one allele, 0 if they
+	               share none (a heterozygote pair scores 1). Equals PLINK
+	               `--distance 1-ibs flat-missing` (and the default
+	               `--distance`/`allele-ct`, rescaled).
+	
+	  het-masked   As ibs but using only sites where BOTH individuals are
+	               homozygous; the per-site score is 1 if the genotypes are
+	               identical, else 0. No PLINK/ANGSD equivalent.
+	
+	  dosage       Mean squared dosage difference per site, 1 - (da-db)^2 / dmax^2
+	               (dmax = maximum dosage, 2 for biallelic data). Squared-Euclidean
+	               distance on dosage; equals PLINK `--make-rel cov` via
+	               sum((da-db)^2) = M*(Cjj+Ckk-2*Cjk). Not the standardised GRM.
+	
+	  single-read  Mean of p1 + p2 - 2*p1*p2 per site, where p is the alt-allele
+	               fraction: alt/(ref+alt) from the AD field when present, otherwise
+	               the genotype dosage/2. This is the expected mismatch when one
+	               allele is drawn at random from each individual; it emulates ANGSD
+	               `-doIBS 1 -makeMatrix 1`. With called genotypes a heterozygote
+	               pair has an expected per-site mismatch of 0.5. (ANGSD itself
+	               needs read-level data; this approximates it from a VCF.)
+	
+	With --method ibs the result matches the previous version of this script
+	exactly. PLINK/ANGSD equivalences are exact only on identical SNP sets: this
+	script uses pairwise-complete sites while PLINK/ANGSD apply their own
+	missing-data scaling, so values can differ slightly when data are missing.
+	
+	Threshold inference (when --threshold is not given)
+	---------------------------------------------------
+	Pairs are sorted by descending similarity. Considering only pairs at or above
+	85 %, the largest drop in similarity between two consecutive pairs is taken as
+	the clone/non-clone break. The threshold is the integer part of the similarity
+	just above that drop if that integer lies within the drop, otherwise the
+	midpoint of the drop. This heuristic assumes clones form a tight cluster at the
+	top of the distribution and is calibrated to the ibs %-scale; for the other
+	measures, or whenever the inferred value looks wrong, set --threshold.
+	
+	Multiple cryptic lineages
+	-------------------------
+	When a dataset contains several genetic lineages, a single clonal threshold is
+	unreliable: each lineage has a different similarity distribution (different
+	informative-SNP counts and per-pair denominators), so clones are best called
+	within each lineage on its own scale. Two ways to do this:
+	  - Supply a 3-column popfile (sample, population, lineage): clone detection
+	    runs independently within each lineage, each with its own histogram and
+	    inferred/supplied threshold.
+	  - Or give `-k/--n-lineages K`: the dataset is split into K lineages by
+	    average-linkage clustering of this script's own distance matrix (which is
+	    clone-robust, unlike STRUCTURE/SNAPCLUST), the inferred 3-column popfile is
+	    written to `<base>_lineages.txt` for review, and detection then runs per
+	    lineage.
+	Each lineage gets its own comparison CSV and PDF; a combined list of all
+	samples to remove across the dataset is written to `<base>_clones_remove.txt`.
+	`--no-lineage` forces a single global run. Only within-lineage pairs are ever
+	eligible to be clones. The comparison CSV is always written (default name from
+	the input basename if `--output` is omitted).
+	
+	Output columns (--output / --input CSV)
+	---------------------------------------
+	ind1, ind2, ind1_snps, ind2_snps, both_snps, match, match_perc, pop.
+	ind1_snps/ind2_snps: each sample's genotyped-loci count. both_snps: number of
+	sites the chosen measure used for the pair (genotyped in both; for het-masked,
+	homozygous in both; for AD-based single-read, with reads in both). match: summed
+	per-site similarity score over those sites; match_perc = round(100 * match /
+	both_snps, 2). pop: the shared population, 'popA-popB' for a between-population
+	pair, or 'NA'.
+	
+	options:
 	  -h, --help            show this help message and exit
 	  -v vcf_file, --vcf vcf_file
-	                        input file with SNP data (`.vcf`)
+	                        input VCF file with SNP data
 	  -p pop_file, --pop pop_file
-	                        text file (tsv or csv) with individuals and
-	                        populations (to accompany `.vcf` file)
+	                        population file (sample, population[, lineage] per
+	                        line); a 3rd lineage column enables per-lineage
+	                        detection
 	  -i compare_file, --input compare_file
-	                        input file (csv) with previously calculated pairwise
-	                        comparisons (using the `--outputfile` option)
+	                        read pairwise comparisons from a prior --output CSV
+	                        instead of a VCF
 	  -o compare_file, --output compare_file
-	                        output file (csv) for all pairwise comparisons (can
-	                        later be used as input with `--inputfile`)
+	                        comparisons CSV (default: derived from input basename;
+	                        always written)
 	  -t threshold, --threshold threshold
-	                        manual similarity threshold (e.g. `94.5` means at
-	                        least 94.5 percent allelic similarity for individuals
-	                        to be considered clones)
+	                        minimum % similarity to call two samples clones
+	                        (default: inferred per set)
+	  -m {ibs,het-masked,dosage,single-read}, --method {ibs,het-masked,dosage,single-read}
+	                        similarity measure (default: ibs); see above
+	  -k K, --n-lineages K  delimit K lineages from the distance matrix and run
+	                        clone detection within each (writes an inferred 3-col
+	                        popfile); ignored if --pop already has a lineage
+	                        column
+	  --no-lineage          force a single global run even with a 3-col popfile or
+	                        --n-lineages
+	  --pdf-output pdf_file
+	                        PDF report filename (default: from input basename;
+	                        per-lineage names are auto-derived)
+	  --no-pdf              skip the PDF report (text output only)
 	
-
-
 
 
 **[vcf_minrep_filter_abs.py](vcf_minrep_filter_abs.py)** - Filters `.vcf` file for SNPs that are genotyped for a minimum number of

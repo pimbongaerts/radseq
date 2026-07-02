@@ -137,8 +137,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
                               [--clone-threshold pct] [--max-k K]
                               [--min-cluster-size N] [--k K]
                               [--tree {upgma,nj}] [--ordination {pca,pcoa}]
-                              [--loci loci_file] [--pdf-output pdf_file]
-                              [--no-pdf]
+                              [--loci loci_file] [--pops-from-sample-id]
+                              [--pdf-output pdf_file] [--no-pdf]
 
 	Clones are non-independent samples that distort per-group allele frequencies and
 	therefore bias essentially every population-genetic measure (Fst, private and
@@ -160,12 +160,16 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	genetic-similarity cut-off that splits the tree into K groups, the merge-height
 	separation gap, and the silhouette width, and picks the best K by silhouette
 	(robust to between-cluster GD overlap, unlike the raw gap), (4) assigns every
-	individual to a cluster at each K, and (5) produces a multi-panel
-	PDF: on the left a tree with per-K cluster-assignment columns and a % genotyped
-	bar aligned to the tips, and on the right a set of differentiation views
-	(cluster-combination similarity histogram, private / fixed-private alleles both
-	per-cluster and per-pair, a pairwise Fst heatmap, a fixed-difference matrix, a
-	PCA/PCoA scatter and a per-cluster diversity bar).
+	individual to a cluster at each K, and (5) produces a two-page PDF. PAGE 1 is a
+	full-page-width tree with readable tip labels, the per-K cluster-assignment
+	columns, a % genotyped bar and - when a popfile (or `--pops-from-sample-id`) is
+	given - one dot-strip panel per metadata track (population from column 2 and,
+	if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
+	delimited fields of the sample name) so each sample's category memberships line
+	up with its tip. PAGE 2 holds the analysis panels (metric-vs-K support curve,
+	per-sample silhouette, PCA/PCoA ordination with hulls, pairwise Fst and dxy
+	heatmaps, fixed differences, per-cluster private alleles, and optional shared/
+	unique loci).
 	
 	The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 	cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -180,9 +184,11 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	  -v vcf_file, --vcf vcf_file
 	                        input file with SNP data (`.vcf`)
 	  -p pop_file, --pop pop_file
-	                        optional text file (tsv/csv) with individuals and
-	                        populations (used only for a cluster x population
-	                        cross-tabulation, not for clustering)
+	                        optional text file (tsv/csv): col 1 = sample, col 2 =
+	                        population, optional col 3 = lineage/species/region.
+	                        Drawn as dot-strip annotation tracks beside the tree
+	                        and cross-tabulated against clusters (not used for
+	                        clustering itself)
 	  -o cluster_file, --output cluster_file
 	                        output file (csv) for per-sample cluster assignments
 	                        across K (default: derived from vcf)
@@ -208,6 +214,11 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	  --loci loci_file      optional ipyrad `.loci` file; adds a shared/unique
 	                        loci panel (private loci per cluster + pairwise
 	                        Jaccard of recovered loci)
+	  --pops-from-sample-id
+	                        derive up to three annotation tracks (drawn beside the
+	                        tree) from each sample name, splitting on "_" and
+	                        using the 2nd, 3rd and 4th fields (the 1st is
+	                        skipped); used instead of a popfile
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)

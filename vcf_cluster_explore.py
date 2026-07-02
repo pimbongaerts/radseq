@@ -38,8 +38,9 @@ ordination axes 1-vs-2 and 2-vs-3 with hulls; (row 2) the metric-vs-K support
 curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
 showing how the clusters distribute across that field's categories; (row 4)
 white-yellow-red differentiation heatmaps - shared loci (or shared genotyped
-SNPs without a `.loci` file), pairwise private alleles excluding singletons, and
-fixed differences (all counted over sites with >= 2 samples per cluster).
+SNPs without a `.loci` file; diagonal = each cluster's own total), pairwise
+private alleles excluding singletons, and alternatively fixed SNPs (all counted
+over sites with >= 2 samples per cluster).
 
 The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -409,21 +410,23 @@ def pairwise_shared_snps(stats):
     """ Number of SNP sites genotyped in >= 2 samples of both clusters, for every
     cluster pair (the SNP-based fallback for shared loci when no `.loci` file is
     given; the >= 2 rule matches the other differentiation panels). Symmetric
-    KxK int matrix (NaN-free). """
+    KxK int matrix; the DIAGONAL is each cluster's own count (sites genotyped in
+    >= 2 of its samples). """
     n_clusters = stats['n_clusters']
     ncall = stats['ncall']
+    has2 = ncall >= 2                                     # cluster x site
     shared = np.zeros((n_clusters, n_clusters), dtype=int)
     for a in range(n_clusters):
         for b in range(n_clusters):
-            if a != b:
-                shared[a, b] = int(((ncall[a] >= 2) & (ncall[b] >= 2)).sum())
+            shared[a, b] = int((has2[a] & has2[b]).sum())
     return shared
 
 
 def shared_loci_matrix(presence, labels, names):
     """ Number of loci recovered in >= 2 samples of both clusters, for every
     cluster pair (from an ipyrad `.loci` presence list; the >= 2 rule matches
-    the other differentiation panels). Symmetric KxK int. """
+    the other differentiation panels). Symmetric KxK int; the DIAGONAL is each
+    cluster's own count (loci recovered in >= 2 of its samples). """
     name_cluster = {nm: int(labels[i]) for i, nm in enumerate(names)}
     clusters = sorted(set(name_cluster.values()))
     cidx = {c: i for i, c in enumerate(clusters)}
@@ -436,8 +439,7 @@ def shared_loci_matrix(presence, labels, names):
     shared = np.zeros((k, k), dtype=int)
     for a in range(k):
         for b in range(k):
-            if a != b:
-                shared[a, b] = int((present2[a] & present2[b]).sum())
+            shared[a, b] = int((present2[a] & present2[b]).sum())
     return shared
 
 
@@ -805,14 +807,18 @@ def despine(ax):
         ax.spines[spine].set_visible(False)
 
 
-def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels):
-    """ Draw a KxK cluster-pair heatmap (NaN diagonal) with cell annotations.
-    Annotation text colour follows each cell's background luminance, so it stays
-    legible on any colormap (including the light end of white->yellow->red). """
+def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels,
+                 show_diagonal=False):
+    """ Draw a KxK cluster-pair heatmap with cell annotations. The diagonal is
+    blanked (NaN) unless `show_diagonal` is set - used for the shared loci / SNPs
+    panels, whose diagonal is each cluster's own total. Annotation text colour
+    follows each cell's background luminance, so it stays legible on any colormap
+    (including the light end of white->yellow->red). """
     import matplotlib.pyplot as plt
     from matplotlib.colors import Normalize
     disp = np.array(mat, dtype=float)
-    np.fill_diagonal(disp, np.nan)
+    if not show_diagonal:
+        np.fill_diagonal(disp, np.nan)
     image = ax.imshow(disp, cmap=cmap, aspect='auto')
     ax.set_xticks(range(n_clusters))
     ax.set_yticks(range(n_clusters))
@@ -825,7 +831,7 @@ def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels):
     norm = Normalize(vmin=lo, vmax=hi)
     for a in range(n_clusters):
         for b in range(n_clusters):
-            if a != b and np.isfinite(disp[a, b]):
+            if np.isfinite(disp[a, b]):
                 r, g, bl, _ = cmap_obj(norm(disp[a, b]))
                 lum = 0.299 * r + 0.587 * g + 0.114 * bl
                 ax.text(b, a, fmt.format(mat[a][b]), ha='center', va='center',
@@ -1083,8 +1089,9 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
              the clusters distribute across that field's categories (one column
              per field).
       ROW 4 (differentiation): shared loci (or shared genotyped SNPs when no
-             `.loci`) | pairwise private alleles excluding singletons | fixed
-             differences (>= 2 samples per cluster). """
+             `.loci`; diagonal = each cluster's own total) | pairwise private
+             alleles excluding singletons | alternatively fixed SNPs (>= 2
+             samples per cluster). """
     import matplotlib.pyplot as plt
     from matplotlib.patches import Polygon
     from scipy.spatial import ConvexHull
@@ -1228,7 +1235,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
 
     def draw_shared(ax):
         draw_heatmap(fig, ax, shared, 'YlOrRd', '{0:d}', shared_title,
-                     n_clusters, cluster_labels)
+                     n_clusters, cluster_labels, show_diagonal=True)
 
     def draw_priv_pair(ax):
         draw_heatmap(fig, ax, priv_pair, 'YlOrRd', '{0:d}',
@@ -1237,7 +1244,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
 
     def draw_fixed(ax):
         draw_heatmap(fig, ax, fixed_diff, 'YlOrRd', '{0:d}',
-                     'Fixed differences (>=2 samples/cluster)',
+                     'Alternatively fixed SNPs (>=2 samples/cluster)',
                      n_clusters, cluster_labels)
 
     # --- assemble rows (each row is a list of panel callables) ---------------

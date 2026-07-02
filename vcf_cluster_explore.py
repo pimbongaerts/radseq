@@ -32,13 +32,14 @@ given - one dot-strip panel per metadata track (population from column 2 and,
 if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 delimited fields of the sample name) so each sample's category memberships line
 up with its tip; the selected-K column is boxed, and tracks can be renamed with
-`--fields`. PAGE 2 is a row-based grid: (row 1) PCA/PCoA ordination with hulls
-and a circular tree with cluster-coloured tips; (row 2) the metric-vs-K support
-curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
-showing how the clusters distribute across that field's categories; (row 4)
-differentiation heatmaps - shared loci (or shared genotyped SNPs without a
-`.loci` file), pairwise private alleles excluding singletons, and fixed
-differences requiring >= 2 individuals per cluster.
+`--fields`. PAGE 2 is a row-based grid: (row 1) ordination axes 1-vs-2 and
+2-vs-3 with hulls, plus a fanned circular tree with cluster-coloured branches
+and tips; (row 2) the metric-vs-K support curve and per-sample silhouette; (row
+3, with tracks) one stacked bar per field showing how the clusters distribute
+across that field's categories; (row 4) differentiation heatmaps - shared loci
+(or shared genotyped SNPs without a `.loci` file), pairwise private alleles
+excluding singletons, and fixed differences requiring >= 2 individuals per
+cluster.
 
 The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -65,6 +66,7 @@ DEFAULT_METHOD = 'ibs'
 DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
 MAX_CATEGORIES = 20            # annotation tracks with more values are dropped
+NAME_TRIM = 20                 # tree tip labels are trimmed to this many chars
 TRACK_COLORS = ['0.0', '0.45', '0.7']   # one grey per field (black -> light)
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
@@ -551,8 +553,9 @@ def locus_sharing_stats(presence, labels, names):
     return clusters, private, jaccard
 
 
-def ordinate(dosage, dist, kind):
-    """ 2D ordination of individuals. Returns (coords[n, 2], pct_var[2]). """
+def ordinate(dosage, dist, kind, n_comp=3):
+    """ Ordination of individuals on the first `n_comp` axes. Returns
+    (coords[n, n_comp], pct_var[n_comp]). """
     if kind == 'pca':
         geno = dosage.T.astype(float)            # samples x sites
         missing = geno < 0
@@ -564,9 +567,10 @@ def ordinate(dosage, dist, kind):
         geno = np.where(missing, col_mean, geno)
         geno = geno - geno.mean(axis=0)
         u_mat, sing, _ = np.linalg.svd(geno, full_matrices=False)
-        coords = u_mat[:, :2] * sing[:2]
+        coords = u_mat[:, :n_comp] * sing[:n_comp]
         total = (sing ** 2).sum()
-        pct = 100.0 * sing[:2] ** 2 / total if total > 0 else np.zeros(2)
+        pct = (100.0 * sing[:n_comp] ** 2 / total if total > 0
+               else np.zeros(n_comp))
         return coords, pct
     # PCoA on the distance matrix (coherent with the tree, but D is non-Euclidean)
     n = dist.shape[0]
@@ -575,10 +579,10 @@ def ordinate(dosage, dist, kind):
     eigval, eigvec = np.linalg.eigh(gram)
     order = np.argsort(eigval)[::-1]
     eigval, eigvec = eigval[order], eigvec[:, order]
-    coords = eigvec[:, :2] * np.sqrt(np.clip(eigval[:2], 0, None))
+    coords = eigvec[:, :n_comp] * np.sqrt(np.clip(eigval[:n_comp], 0, None))
     positive = np.clip(eigval, 0, None).sum()
-    pct = (100.0 * np.clip(eigval[:2], 0, None) / positive
-           if positive > 0 else np.zeros(2))
+    pct = (100.0 * np.clip(eigval[:n_comp], 0, None) / positive
+           if positive > 0 else np.zeros(n_comp))
     return coords, pct
 
 
@@ -709,48 +713,74 @@ def build_nj_tree(dist, names):
     return tree
 
 
-def draw_circular_tree(ax, tree, sample_color, title):
-    """ Draw a Bio.Phylo tree as a radial (circular) dendrogram: radius = branch-
-    length distance from the root (centre), tips evenly spaced around the circle,
-    and a coloured tip dot per sample (colours match the PCA / main tree). Same
-    tree object as the main tree, just laid out in polar coordinates. """
+def draw_circular_tree(ax, tree, sample_cluster, cluster_color, title,
+                       span_deg=300.0):
+    """ Draw a Bio.Phylo tree as a FANNED radial dendrogram: radius = branch-
+    length distance from the root (centre), tips spread over a `span_deg` fan
+    (an open wedge, not a full circle, so the deep splits open up), with an extra
+    angular gap inserted between clusters so genetically differentiated groups
+    separate visually. Branches that sit entirely within one cluster are drawn in
+    that cluster's colour (grey where a branch still joins several clusters); tip
+    dots are coloured by cluster to match the PCA panels. """
     tips = tree.get_terminals()
     n = len(tips)
     if n < 2:
         ax.axis('off')
         return
-    tip_angle = {tip: 2.0 * np.pi * i / n for i, tip in enumerate(tips)}
+    # slot positions along the fan, with a gap between adjacent clusters
+    gap = max(1.0, n / 40.0)
+    slots, pos, prev = {}, 0.0, None
+    for tip in tips:
+        cid = sample_cluster.get(tip.name)
+        if prev is not None and cid != prev:
+            pos += gap
+        slots[tip] = pos
+        pos += 1.0
+        prev = cid
+    total = max(pos - 1.0, 1.0)
+    span = np.radians(span_deg)
+    a0 = np.pi / 2.0 + span / 2.0             # fan centred on top, opens downward
+    tip_angle = {tip: a0 - span * (slots[tip] / total) for tip in tips}
     depths = tree.depths()                     # branch-length distance from root
-    # mean terminal-descendant angle per clade (post-order via reversed BFS)
+    # post-order (reversed level order): mean tip angle + cluster set per clade
     order = list(tree.find_clades(order='level'))
-    term_sum, term_cnt = {}, {}
+    ang_sum, ang_cnt, clset = {}, {}, {}
     for clade in reversed(order):
         if clade.is_terminal():
-            term_sum[clade], term_cnt[clade] = tip_angle[clade], 1
+            ang_sum[clade], ang_cnt[clade] = tip_angle[clade], 1
+            clset[clade] = {sample_cluster.get(clade.name)}
         else:
-            term_sum[clade] = sum(term_sum[c] for c in clade.clades)
-            term_cnt[clade] = sum(term_cnt[c] for c in clade.clades)
-    angle = {clade: term_sum[clade] / term_cnt[clade] for clade in term_sum}
+            ang_sum[clade] = sum(ang_sum[c] for c in clade.clades)
+            ang_cnt[clade] = sum(ang_cnt[c] for c in clade.clades)
+            clset[clade] = set().union(*(clset[c] for c in clade.clades))
+    angle = {clade: ang_sum[clade] / ang_cnt[clade] for clade in ang_sum}
+
+    def edge_color(clade):
+        cids = clset[clade]
+        if len(cids) == 1:
+            return cluster_color.get(next(iter(cids)), '0.35')
+        return '0.4'
+
     for clade in order:
         if clade.is_terminal():
             continue
         r = depths[clade]
         child_angles = [angle[c] for c in clade.clades]
         thetas = np.linspace(min(child_angles), max(child_angles), 40)
-        ax.plot(r * np.cos(thetas), r * np.sin(thetas), color='0.35', lw=0.5,
-                zorder=1)
+        ax.plot(r * np.cos(thetas), r * np.sin(thetas),
+                color=edge_color(clade), lw=0.6, zorder=1)
         for child, a in zip(clade.clades, child_angles):
             rc = depths[child]
             ax.plot([r * np.cos(a), rc * np.cos(a)],
-                    [r * np.sin(a), rc * np.sin(a)], color='0.35', lw=0.5,
-                    zorder=1)
+                    [r * np.sin(a), rc * np.sin(a)], color=edge_color(child),
+                    lw=0.6, zorder=2)
     xs, ys, cols = [], [], []
     for tip in tips:
         a, r = tip_angle[tip], depths[tip]
         xs.append(r * np.cos(a))
         ys.append(r * np.sin(a))
-        cols.append(sample_color.get(tip.name, '0.5'))
-    ax.scatter(xs, ys, s=12, color=cols, edgecolor='none', zorder=3)
+        cols.append(cluster_color.get(sample_cluster.get(tip.name), '0.5'))
+    ax.scatter(xs, ys, s=14, color=cols, edgecolor='none', zorder=3)
     ax.set_aspect('equal')
     ax.axis('off')
     ax.set_title(title, fontsize=8)
@@ -939,18 +969,29 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
     ax_tree.tick_params(labelsize=7)
 
     tip_y = {}
+    max_disp = 1
     for text in ax_tree.texts:
         label = text.get_text().strip()
         if label in name_idx:
             tip_y[label] = text.get_position()[1]
             text.set_fontsize(font_size)
             text.set_color(sel_color[label])
+            # trim long names so the labels stay inside the tree box
+            shown = label if len(label) <= NAME_TRIM else label[:NAME_TRIM] + '…'
+            text.set_text('  ' + shown)
+            max_disp = max(max_disp, len(shown))
     if not tip_y:
         sys.stderr.write('Warning: could not recover tip positions.\n')
         plt.close(fig)
         return None
     ys = sorted(tip_y.values())
     row_pitch = (ys[1] - ys[0]) if len(ys) > 1 else 1.0
+    # Reserve horizontal room for the (trimmed) tip labels so they don't spill
+    # out of the tree box into the columns: extend xlim by the label width.
+    xmin, xmax = ax_tree.get_xlim()
+    data_per_inch = (xmax - xmin) / tree_w if tree_w > 0 else 1.0
+    label_inch = (max_disp + 2) * font_size * 0.6 / 72.0
+    ax_tree.set_xlim(xmin, xmax + label_inch * data_per_inch)
     ylim = ax_tree.get_ylim()
     if tree_mode == 'nj':
         title = '{0} tree (display); clusters = UPGMA'.format(tree_mode.upper())
@@ -1021,8 +1062,8 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                         data, method, ordination, tree_mode, colors_by_k,
                         category_tracks, loci_presence):
     """ PAGE 2 - analysis panels in a row-based grid:
-      ROW 1: ordination (PCA/PCoA) + convex hulls | circular tree (tips coloured
-             by cluster, matching the ordination).
+      ROW 1: ordination axes 1v2 | ordination axes 2v3 | fanned circular tree
+             (all coloured by cluster, so differentiated groups pop out).
       ROW 2: metric-vs-K support curve | per-sample silhouette.
       ROW 3 (only with annotation tracks): one stacked bar per field showing how
              the clusters distribute across that field's categories (one column
@@ -1041,47 +1082,49 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
     clusters = stats['clusters']
     n_clusters = stats['n_clusters']
     sel_cid_color = colors_by_k[selected['K']]
-    sample_color = {nm: sel_cid_color[int(labels[name_idx[nm]])] for nm in names}
+    sample_cluster = {nm: int(labels[name_idx[nm]]) for nm in names}
     cluster_labels = ['C{0}'.format(c) for c in clusters]
 
     ks = [r['K'] for r in display]
     sils = [r['silhouette'] for r in display]
     chs = [r['ch'] for r in display]
     sample_sil = silhouette_samples(dist, labels)
-    coords, pct = ordinate(data['dosage'], dist, ordination)
+    coords, pct = ordinate(data['dosage'], dist, ordination, n_comp=3)
     if tree_mode == 'nj':
         tree = build_nj_tree(dist, names)
     else:
         tree = build_upgma_tree(linkage_matrix, names)
 
-    def draw_pca(ax):       # ordination + convex hulls
-        for c in clusters:
-            pts = coords[labels == c]
-            col = sel_cid_color[c]
-            ax.scatter(pts[:, 0], pts[:, 1], s=14, color=col, edgecolor='none',
-                       label='C{0}'.format(c))
-            if pts.shape[0] >= 3:
-                try:
-                    hull = ConvexHull(pts)
-                    ax.add_patch(Polygon(pts[hull.vertices], closed=True,
-                                         facecolor=col, alpha=0.15,
-                                         edgecolor=col, lw=0.8))
-                except Exception:
-                    pass
-        ax.set_xlabel('{0}1 ({1:.1f}%)'.format(ordination.upper(), pct[0]),
-                      fontsize=7)
-        ax.set_ylabel('{0}2 ({1:.1f}%)'.format(ordination.upper(), pct[1]),
-                      fontsize=7)
-        ax.set_title('Ordination ({0}) by cluster'.format(ordination.upper()),
-                     fontsize=8)
-        ax.legend(fontsize=5, ncol=2, framealpha=0.9)
-        ax.tick_params(labelsize=6)
-        despine(ax)
+    def make_ordination(ix, iy):    # scatter of axis ix vs iy + convex hulls
+        def draw(ax):
+            for c in clusters:
+                pts = coords[labels == c]
+                col = sel_cid_color[c]
+                ax.scatter(pts[:, ix], pts[:, iy], s=14, color=col,
+                           edgecolor='none', label='C{0}'.format(c))
+                if pts.shape[0] >= 3:
+                    try:
+                        hull = ConvexHull(pts[:, [ix, iy]])
+                        ax.add_patch(Polygon(pts[:, [ix, iy]][hull.vertices],
+                                             closed=True, facecolor=col,
+                                             alpha=0.15, edgecolor=col, lw=0.8))
+                    except Exception:
+                        pass
+            ax.set_xlabel('{0}{1} ({2:.1f}%)'.format(ordination.upper(), ix + 1,
+                                                     pct[ix]), fontsize=7)
+            ax.set_ylabel('{0}{1} ({2:.1f}%)'.format(ordination.upper(), iy + 1,
+                                                     pct[iy]), fontsize=7)
+            ax.set_title('Ordination ({0}) {1} vs {2}'.format(
+                ordination.upper(), ix + 1, iy + 1), fontsize=8)
+            ax.legend(fontsize=5, ncol=2, framealpha=0.9)
+            ax.tick_params(labelsize=6)
+            despine(ax)
+        return draw
 
     def draw_circular(ax):
         tlabel = 'NJ' if tree_mode == 'nj' else 'UPGMA'
-        draw_circular_tree(ax, tree, sample_color,
-                           'Circular {0} tree'.format(tlabel))
+        draw_circular_tree(ax, tree, sample_cluster, sel_cid_color,
+                           'Circular {0} tree (fan)'.format(tlabel))
 
     def draw_a1(ax):        # metric-vs-K curve (silhouette + Calinski-Harabasz)
         ax.plot(ks, sils, '-o', color='#1f6f6f', markersize=4,
@@ -1184,7 +1227,8 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                      n_clusters, cluster_labels)
 
     # --- assemble rows (each row is a list of panel callables) ---------------
-    rows = [[draw_pca, draw_circular], [draw_a1, draw_a2]]
+    rows = [[make_ordination(0, 1), make_ordination(1, 2), draw_circular],
+            [draw_a1, draw_a2]]
     if category_tracks:
         rows.append([make_field_dist(t) for t in category_tracks])
     rows.append([draw_shared, draw_priv_pair, draw_fixed])

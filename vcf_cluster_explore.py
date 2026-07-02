@@ -32,10 +32,13 @@ given - one dot-strip panel per metadata track (population from column 2 and,
 if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 delimited fields of the sample name) so each sample's category memberships line
 up with its tip; the selected-K column is boxed, and tracks can be renamed with
-`--fields`. PAGE 2 holds the analysis panels (metric-vs-K support curve,
-per-sample silhouette, PCA/PCoA ordination with hulls, pairwise Fst and dxy
-heatmaps, fixed differences, per-cluster private alleles, and optional shared/
-unique loci).
+`--fields`. PAGE 2 is a row-based grid: (row 1) PCA/PCoA ordination with hulls
+and a circular tree with cluster-coloured tips; (row 2) the metric-vs-K support
+curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
+showing how the clusters distribute across that field's categories; (row 4)
+differentiation heatmaps - shared loci (or shared genotyped SNPs without a
+`.loci` file), pairwise private alleles excluding singletons, and fixed
+differences requiring >= 2 individuals per cluster.
 
 The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -362,6 +365,77 @@ def pairwise_matrices(stats):
     return fixed_diff, priv_pair
 
 
+def pairwise_private_no_singletons(stats):
+    """ Pairwise private-allele counts EXCLUDING singletons: priv[a, b] = alleles
+    present in cluster a on >= 2 allele copies (so not a singleton) yet entirely
+    absent from cluster b (which has data at the site). KxK, NaN-free ints. """
+    n_clusters = stats['n_clusters']
+    altcnt, ncall = stats['altcnt'], stats['ncall']
+    alt_present, ref_present = stats['alt_present'], stats['ref_present']
+    has_data = stats['has_data']
+    refcnt = 2.0 * ncall - altcnt
+    alt_ok = altcnt >= 2                      # >= 2 copies -> not a singleton
+    ref_ok = refcnt >= 2
+    priv = np.zeros((n_clusters, n_clusters), dtype=int)
+    for a in range(n_clusters):
+        for b in range(n_clusters):
+            if a == b:
+                continue
+            priv[a, b] = int(
+                (alt_ok[a] & ~alt_present[b] & has_data[b]).sum() +
+                (ref_ok[a] & ~ref_present[b] & has_data[b]).sum())
+    return priv
+
+
+def pairwise_fixed_diff_min2(stats):
+    """ Pairwise fixed-difference counts requiring >= 2 genotyped individuals in
+    BOTH clusters at a site (so a difference is never called off a single
+    individual). Symmetric KxK int matrix. """
+    n_clusters = stats['n_clusters']
+    freq, ncall = stats['freq'], stats['ncall']
+    fixed = np.zeros((n_clusters, n_clusters), dtype=int)
+    for a in range(n_clusters):
+        for b in range(a + 1, n_clusters):
+            valid = ((ncall[a] >= 2) & (ncall[b] >= 2)
+                     & np.isfinite(freq[a]) & np.isfinite(freq[b]))
+            fdiff = int((valid & (np.abs(freq[a] - freq[b]) == 1.0)).sum())
+            fixed[a, b] = fixed[b, a] = fdiff
+    return fixed
+
+
+def pairwise_shared_snps(stats):
+    """ Number of SNP sites genotyped in both clusters, for every cluster pair
+    (the SNP-based fallback for shared loci when no `.loci` file is given).
+    Symmetric KxK int matrix (NaN-free). """
+    n_clusters = stats['n_clusters']
+    has_data = stats['has_data']
+    shared = np.zeros((n_clusters, n_clusters), dtype=int)
+    for a in range(n_clusters):
+        for b in range(n_clusters):
+            if a != b:
+                shared[a, b] = int((has_data[a] & has_data[b]).sum())
+    return shared
+
+
+def shared_loci_matrix(presence, labels, names):
+    """ Number of loci recovered in >= 1 sample of both clusters, for every
+    cluster pair (from an ipyrad `.loci` presence list). Symmetric KxK int. """
+    name_cluster = {nm: int(labels[i]) for i, nm in enumerate(names)}
+    clusters = sorted(set(name_cluster.values()))
+    cidx = {c: i for i, c in enumerate(clusters)}
+    k = len(clusters)
+    present_any = np.zeros((k, len(presence)), dtype=bool)
+    for li, locus in enumerate(presence):
+        for nm in locus:
+            present_any[cidx[name_cluster[nm]], li] = True
+    shared = np.zeros((k, k), dtype=int)
+    for a in range(k):
+        for b in range(k):
+            if a != b:
+                shared[a, b] = int((present_any[a] & present_any[b]).sum())
+    return shared
+
+
 def pairwise_fst(stats):
     """ Hudson's Fst between every cluster pair (ratio of averages, allele-copy
     counts so a single diploid still gives n-1 = 1). Returns KxK (NaN diag). """
@@ -635,6 +709,53 @@ def build_nj_tree(dist, names):
     return tree
 
 
+def draw_circular_tree(ax, tree, sample_color, title):
+    """ Draw a Bio.Phylo tree as a radial (circular) dendrogram: radius = branch-
+    length distance from the root (centre), tips evenly spaced around the circle,
+    and a coloured tip dot per sample (colours match the PCA / main tree). Same
+    tree object as the main tree, just laid out in polar coordinates. """
+    tips = tree.get_terminals()
+    n = len(tips)
+    if n < 2:
+        ax.axis('off')
+        return
+    tip_angle = {tip: 2.0 * np.pi * i / n for i, tip in enumerate(tips)}
+    depths = tree.depths()                     # branch-length distance from root
+    # mean terminal-descendant angle per clade (post-order via reversed BFS)
+    order = list(tree.find_clades(order='level'))
+    term_sum, term_cnt = {}, {}
+    for clade in reversed(order):
+        if clade.is_terminal():
+            term_sum[clade], term_cnt[clade] = tip_angle[clade], 1
+        else:
+            term_sum[clade] = sum(term_sum[c] for c in clade.clades)
+            term_cnt[clade] = sum(term_cnt[c] for c in clade.clades)
+    angle = {clade: term_sum[clade] / term_cnt[clade] for clade in term_sum}
+    for clade in order:
+        if clade.is_terminal():
+            continue
+        r = depths[clade]
+        child_angles = [angle[c] for c in clade.clades]
+        thetas = np.linspace(min(child_angles), max(child_angles), 40)
+        ax.plot(r * np.cos(thetas), r * np.sin(thetas), color='0.35', lw=0.5,
+                zorder=1)
+        for child, a in zip(clade.clades, child_angles):
+            rc = depths[child]
+            ax.plot([r * np.cos(a), rc * np.cos(a)],
+                    [r * np.sin(a), rc * np.sin(a)], color='0.35', lw=0.5,
+                    zorder=1)
+    xs, ys, cols = [], [], []
+    for tip in tips:
+        a, r = tip_angle[tip], depths[tip]
+        xs.append(r * np.cos(a))
+        ys.append(r * np.sin(a))
+        cols.append(sample_color.get(tip.name, '0.5'))
+    ax.scatter(xs, ys, s=12, color=cols, edgecolor='none', zorder=3)
+    ax.set_aspect('equal')
+    ax.axis('off')
+    ax.set_title(title, fontsize=8)
+
+
 def make_ax_in(fig, fig_w, fig_h):
     """ Return an `ax_in(x, ytop, w, h)` that places an axes by inches-from-the-
     top-left on `fig` (whose size is fig_w x fig_h inches). """
@@ -896,23 +1017,31 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
     return tip_y
 
 
-def write_analysis_page(pdf, dist, names, display, selected, data, method,
-                        ordination, colors_by_k, loci_presence):
-    """ PAGE 2 - the differentiation / K-support analysis panels laid out in a
-    two-column grid: metric-vs-K curve, per-sample silhouette, ordination with
-    hulls, pairwise Fst and dxy heatmaps, fixed-difference heatmap, per-cluster
-    private alleles, and (with --loci) private loci + shared-loci Jaccard. """
+def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
+                        data, method, ordination, tree_mode, colors_by_k,
+                        category_tracks, loci_presence):
+    """ PAGE 2 - analysis panels in a row-based grid:
+      ROW 1: ordination (PCA/PCoA) + convex hulls | circular tree (tips coloured
+             by cluster, matching the ordination).
+      ROW 2: metric-vs-K support curve | per-sample silhouette.
+      ROW 3 (only with annotation tracks): one stacked bar per field showing how
+             the clusters distribute across that field's categories (one column
+             per field).
+      ROW 4 (differentiation): shared loci (or shared genotyped SNPs when no
+             `.loci`) | pairwise private alleles excluding singletons | fixed
+             differences (>= 2 individuals per cluster). """
     import matplotlib.pyplot as plt
     from matplotlib.patches import Polygon
     from scipy.spatial import ConvexHull
 
     n_tips = len(names)
+    name_idx = {nm: i for i, nm in enumerate(names)}
     labels = selected['labels']
     stats = cluster_allele_stats(data['dosage'], labels)
     clusters = stats['clusters']
     n_clusters = stats['n_clusters']
     sel_cid_color = colors_by_k[selected['K']]
-    sel_palette = [sel_cid_color[c] for c in clusters]
+    sample_color = {nm: sel_cid_color[int(labels[name_idx[nm]])] for nm in names}
     cluster_labels = ['C{0}'.format(c) for c in clusters]
 
     ks = [r['K'] for r in display]
@@ -920,11 +1049,39 @@ def write_analysis_page(pdf, dist, names, display, selected, data, method,
     chs = [r['ch'] for r in display]
     sample_sil = silhouette_samples(dist, labels)
     coords, pct = ordinate(data['dosage'], dist, ordination)
-    fst = pairwise_fst(stats)
-    dxy = pairwise_dxy(stats)
-    fst_disp = np.where(np.isfinite(fst), np.clip(fst, 0, None), np.nan)
-    priv = private_alleles(stats)
-    fixed_diff, _ = pairwise_matrices(stats)
+    if tree_mode == 'nj':
+        tree = build_nj_tree(dist, names)
+    else:
+        tree = build_upgma_tree(linkage_matrix, names)
+
+    def draw_pca(ax):       # ordination + convex hulls
+        for c in clusters:
+            pts = coords[labels == c]
+            col = sel_cid_color[c]
+            ax.scatter(pts[:, 0], pts[:, 1], s=14, color=col, edgecolor='none',
+                       label='C{0}'.format(c))
+            if pts.shape[0] >= 3:
+                try:
+                    hull = ConvexHull(pts)
+                    ax.add_patch(Polygon(pts[hull.vertices], closed=True,
+                                         facecolor=col, alpha=0.15,
+                                         edgecolor=col, lw=0.8))
+                except Exception:
+                    pass
+        ax.set_xlabel('{0}1 ({1:.1f}%)'.format(ordination.upper(), pct[0]),
+                      fontsize=7)
+        ax.set_ylabel('{0}2 ({1:.1f}%)'.format(ordination.upper(), pct[1]),
+                      fontsize=7)
+        ax.set_title('Ordination ({0}) by cluster'.format(ordination.upper()),
+                     fontsize=8)
+        ax.legend(fontsize=5, ncol=2, framealpha=0.9)
+        ax.tick_params(labelsize=6)
+        despine(ax)
+
+    def draw_circular(ax):
+        tlabel = 'NJ' if tree_mode == 'nj' else 'UPGMA'
+        draw_circular_tree(ax, tree, sample_color,
+                           'Circular {0} tree'.format(tlabel))
 
     def draw_a1(ax):        # metric-vs-K curve (silhouette + Calinski-Harabasz)
         ax.plot(ks, sils, '-o', color='#1f6f6f', markersize=4,
@@ -976,93 +1133,77 @@ def write_analysis_page(pdf, dist, names, display, selected, data, method,
         ax.tick_params(labelsize=6)
         despine(ax)
 
-    def draw_b1(ax):        # ordination + convex hulls
-        for c in clusters:
-            member = labels == c
-            pts = coords[member]
-            col = sel_cid_color[c]
-            ax.scatter(pts[:, 0], pts[:, 1], s=14, color=col, edgecolor='none',
-                       label='C{0}'.format(c))
-            if pts.shape[0] >= 3:
-                try:
-                    hull = ConvexHull(pts)
-                    ax.add_patch(Polygon(pts[hull.vertices], closed=True,
-                                         facecolor=col, alpha=0.15,
-                                         edgecolor=col, lw=0.8))
-                except Exception:
-                    pass
-        ax.set_xlabel('{0}1 ({1:.1f}%)'.format(ordination.upper(), pct[0]),
-                      fontsize=7)
-        ax.set_ylabel('{0}2 ({1:.1f}%)'.format(ordination.upper(), pct[1]),
-                      fontsize=7)
-        ax.set_title('Ordination ({0}) by lineage'.format(ordination.upper()),
-                     fontsize=8)
-        ax.legend(fontsize=5, ncol=2, framealpha=0.9)
-        ax.tick_params(labelsize=6)
-        despine(ax)
+    def make_field_dist(track):     # stacked cluster counts across a field
+        values = track['values']
+        vidx = {v: i for i, v in enumerate(values)}
+        cidx = {c: i for i, c in enumerate(clusters)}
+        counts = np.zeros((n_clusters, len(values)))
+        for i, nm in enumerate(names):
+            value = track['assign'].get(nm)
+            if value is not None:
+                counts[cidx[int(labels[i])], vidx[value]] += 1
 
-    def draw_private_bar(ax):       # per-cluster private alleles
-        seg = [t - f for t, f in priv]
-        fix = [f for _, f in priv]
-        xpos = np.arange(n_clusters)
-        ax.bar(xpos, seg, color=sel_palette, label='private (segregating)')
-        ax.bar(xpos, fix, bottom=seg, color=sel_palette, hatch='//',
-               edgecolor='black', linewidth=0.3, label='private (fixed)')
-        ax.set_xticks(xpos)
-        ax.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
-        ax.set_title('Private alleles per cluster', fontsize=8)
-        ax.set_ylabel('# alleles', fontsize=7)
-        ax.legend(fontsize=5)
-        ax.tick_params(labelsize=6)
-        despine(ax)
-
-    # A grid of independent panels; heatmaps colour-bar against `fig` (bound
-    # below, resolved when each closure runs inside the placement loop).
-    panels = [
-        draw_a1, draw_a2, draw_b1,
-        lambda ax: draw_heatmap(fig, ax, fst_disp, 'viridis', '{0:.2f}',
-                                'Pairwise Fst (Hudson, relative)',
-                                n_clusters, cluster_labels),
-        lambda ax: draw_heatmap(fig, ax, dxy, 'cividis', '{0:.3f}',
-                                'Pairwise dxy (absolute)',
-                                n_clusters, cluster_labels),
-        lambda ax: draw_heatmap(fig, ax, fixed_diff, 'magma', '{0:d}',
-                                'Fixed differences (SNPs)',
-                                n_clusters, cluster_labels),
-        draw_private_bar,
-    ]
-    if loci_presence is not None:
-        _, private_loci, jaccard = locus_sharing_stats(loci_presence, labels,
-                                                       names)
-
-        def draw_priv_loci(ax):
-            ax.bar(np.arange(n_clusters), private_loci, color=sel_palette)
-            ax.set_xticks(np.arange(n_clusters))
-            ax.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
-            ax.set_title('Private loci per cluster', fontsize=8)
-            ax.set_ylabel('# loci (only this cluster)', fontsize=6)
+        def draw(ax):
+            x = np.arange(len(values))
+            bottom = np.zeros(len(values))
+            for ci, c in enumerate(clusters):
+                ax.bar(x, counts[ci], bottom=bottom, color=sel_cid_color[c],
+                       edgecolor='white', linewidth=0.2, label='C{0}'.format(c))
+                bottom += counts[ci]
+            ax.set_xticks(x)
+            ax.set_xticklabels(values, fontsize=6, rotation=90)
+            ax.set_ylabel('# samples', fontsize=7)
+            ax.set_title('Clusters by {0}'.format(track['name']), fontsize=8)
             ax.tick_params(labelsize=6)
+            ax.legend(fontsize=4, ncol=2, framealpha=0.9)
             despine(ax)
+        return draw
 
-        panels.append(draw_priv_loci)
-        panels.append(lambda ax: draw_heatmap(fig, ax, jaccard, 'YlGnBu',
-                                              '{0:.2f}', 'Shared loci (Jaccard)',
-                                              n_clusters, cluster_labels))
+    # --- differentiation matrices (row 4) ------------------------------------
+    if loci_presence is not None:
+        shared = shared_loci_matrix(loci_presence, labels, names)
+        shared_title = 'Shared loci'
+    else:
+        shared = pairwise_shared_snps(stats)
+        shared_title = 'Shared genotyped SNPs'
+    priv_pair = pairwise_private_no_singletons(stats)
+    fixed_diff = pairwise_fixed_diff_min2(stats)
 
-    ncol = 2
-    nrow = (len(panels) + ncol - 1) // ncol
-    cell_w, cell_h = 4.4, 3.0
-    col_gap, row_gap = 0.9, 0.8
-    margin = 0.6
-    fig_w = 2 * margin + ncol * cell_w + (ncol - 1) * col_gap
-    fig_h = 2 * margin + nrow * cell_h + (nrow - 1) * row_gap
+    def draw_shared(ax):
+        draw_heatmap(fig, ax, shared, 'YlGnBu', '{0:d}', shared_title,
+                     n_clusters, cluster_labels)
+
+    def draw_priv_pair(ax):
+        draw_heatmap(fig, ax, priv_pair, 'magma', '{0:d}',
+                     'Private alleles (pairwise, no singletons)',
+                     n_clusters, cluster_labels)
+
+    def draw_fixed(ax):
+        draw_heatmap(fig, ax, fixed_diff, 'inferno', '{0:d}',
+                     'Fixed differences (>=2 indiv/cluster)',
+                     n_clusters, cluster_labels)
+
+    # --- assemble rows (each row is a list of panel callables) ---------------
+    rows = [[draw_pca, draw_circular], [draw_a1, draw_a2]]
+    if category_tracks:
+        rows.append([make_field_dist(t) for t in category_tracks])
+    rows.append([draw_shared, draw_priv_pair, draw_fixed])
+
+    n_rows = len(rows)
+    max_cols = max(len(r) for r in rows)
+    base_cell = 4.6
+    col_gap, row_gap, margin, row_h = 0.9, 0.9, 0.6, 3.2
+    content_w = max_cols * base_cell + (max_cols - 1) * col_gap
+    fig_w = 2 * margin + content_w
+    fig_h = 2 * margin + n_rows * row_h + (n_rows - 1) * row_gap
     fig = plt.figure(figsize=(fig_w, fig_h))
     ax_in = make_ax_in(fig, fig_w, fig_h)
-    for i, draw in enumerate(panels):
-        r, c = divmod(i, ncol)
-        x = margin + c * (cell_w + col_gap)
-        ytop = margin + r * (cell_h + row_gap)
-        draw(ax_in(x, ytop, cell_w, cell_h))
+    for ri, row in enumerate(rows):
+        ncols = len(row)
+        cw = (content_w - (ncols - 1) * col_gap) / ncols
+        ytop = margin + ri * (row_h + row_gap)
+        for ci, draw in enumerate(row):
+            draw(ax_in(margin + ci * (cw + col_gap), ytop, cw, row_h))
     pdf.savefig(fig)
     plt.close(fig)
 
@@ -1072,13 +1213,14 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
                      ordination, pdf_filename, category_tracks=None,
                      loci_presence=None):
     """ Two-page PDF. PAGE 1: a full-page-width tree with readable tip labels,
-    the per-K cluster-assignment columns, a %genotyped bar and one dot-strip
-    panel per metadata track (population / lineage from a popfile, or the sample-
-    id fields). PAGE 2: the analysis panels - K-support (metric-vs-K curve, per-
-    sample silhouette) and lineage differentiation (ordination with hulls, Fst
-    vs dxy heatmaps, SNP diagnostics, and optional shared/unique loci when an
-    ipyrad `.loci` file is supplied). Cluster colours are descent-consistent
-    across K (assign_hierarchical_colors), shared by both pages. """
+    the per-K cluster-assignment columns (selected K boxed), a %genotyped bar and
+    one dot-strip panel per metadata track (population / lineage from a popfile,
+    or the sample-id fields). PAGE 2 (row-based grid): ordination + circular tree;
+    metric-vs-K curve + per-sample silhouette; per-field cluster-distribution
+    stacked bars; and differentiation heatmaps (shared loci or genotyped SNPs,
+    pairwise private alleles excl. singletons, fixed differences). Cluster colours
+    are descent-consistent across K (assign_hierarchical_colors), shared by both
+    pages. """
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -1101,8 +1243,9 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
         if tip_y is None:
             plt.close('all')
             return
-        write_analysis_page(pdf, dist, names, display, selected, data, method,
-                            ordination, colors_by_k, loci_presence)
+        write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
+                            data, method, ordination, tree_mode, colors_by_k,
+                            category_tracks, loci_presence)
     sys.stderr.write('PDF report written to {0}\n'.format(pdf_filename))
 
 

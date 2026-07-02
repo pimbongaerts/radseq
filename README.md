@@ -168,10 +168,13 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 	delimited fields of the sample name) so each sample's category memberships line
 	up with its tip; the selected-K column is boxed, and tracks can be renamed with
-	`--fields`. PAGE 2 holds the analysis panels (metric-vs-K support curve,
-	per-sample silhouette, PCA/PCoA ordination with hulls, pairwise Fst and dxy
-	heatmaps, fixed differences, per-cluster private alleles, and optional shared/
-	unique loci).
+	`--fields`. PAGE 2 is a row-based grid: (row 1) PCA/PCoA ordination with hulls
+	and a circular tree with cluster-coloured tips; (row 2) the metric-vs-K support
+	curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
+	showing how the clusters distribute across that field's categories; (row 4)
+	differentiation heatmaps - shared loci (or shared genotyped SNPs without a
+	`.loci` file), pairwise private alleles excluding singletons, and fixed
+	differences requiring >= 2 individuals per cluster.
 	
 	The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 	cut to give every K-assignment, so the tree and the columns are always coherent.

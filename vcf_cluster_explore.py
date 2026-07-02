@@ -60,6 +60,7 @@ __license__ = 'GPL'
 DEFAULT_METHOD = 'ibs'
 DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
+MAX_CATEGORIES = 20            # annotation tracks with more values are dropped
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
 CSV_SUFFIX = '_clusters.csv'
@@ -687,7 +688,8 @@ def build_category_tracks(names, pop_filename, pops_from_sample_id):
     `_`-delimited fields of each sample name (the 1st field is skipped). From a
     popfile: a `population` track (column 2) and, when a 3rd column is present, a
     `lineage / region` track (column 3). Returns a (possibly empty) list of
-    tracks; tracks with no usable values are dropped. """
+    tracks; tracks with no usable values, or with more than MAX_CATEGORIES
+    distinct values (e.g. a per-sample id field), are dropped (with a note). """
     tracks = []
     if pops_from_sample_id:
         for title, idx in (('id field 2', 1), ('id field 3', 2),
@@ -707,7 +709,18 @@ def build_category_tracks(names, pop_filename, pops_from_sample_id):
         if any(nm in indivs_lineages for nm in names):
             tracks.append(_make_track('lineage / region', indivs_lineages,
                                       names))
-    return [t for t in tracks if t['values']]
+    kept = []
+    for track in tracks:
+        n_values = len(track['values'])
+        if n_values == 0:
+            continue
+        if n_values > MAX_CATEGORIES:
+            sys.stderr.write('Note: annotation track `{0}` has {1} distinct '
+                             'values (> MAX_CATEGORIES={2}); not drawn.\n'.format(
+                                 track['name'], n_values, MAX_CATEGORIES))
+            continue
+        kept.append(track)
+    return kept
 
 
 def draw_category_track(ax, track, tip_y, ylim, dot_size):
@@ -1319,7 +1332,9 @@ if __name__ == '__main__':
                         help='derive up to three annotation tracks (drawn beside '
                              'the tree) from each sample name, splitting on "_" '
                              'and using the 2nd, 3rd and 4th fields (the 1st is '
-                             'skipped); used instead of a popfile')
+                             'skipped); used instead of a popfile. A field with '
+                             'more than {0} distinct values (e.g. a per-sample '
+                             'id) is dropped'.format(MAX_CATEGORIES))
     parser.add_argument('--pdf-output', dest='pdf_output', default=None,
                         metavar='pdf_file', help='filename for the PDF report')
     parser.add_argument('--no-pdf', dest='no_pdf', action='store_true',

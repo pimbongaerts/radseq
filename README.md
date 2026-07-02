@@ -218,7 +218,9 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	                        derive up to three annotation tracks (drawn beside the
 	                        tree) from each sample name, splitting on "_" and
 	                        using the 2nd, 3rd and 4th fields (the 1st is
-	                        skipped); used instead of a popfile
+	                        skipped); used instead of a popfile. A field with more
+	                        than 20 distinct values (e.g. a per-sample id) is
+	                        dropped
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)

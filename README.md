@@ -321,8 +321,12 @@ so the output is a valid `.loci` file containing only the retained loci. *[File 
 	`// ... |<N>...|`). When the VCF has no `loc<N>` ids (e.g. a de novo VCF whose
 	`CHROM` is the locus number) the `CHROM` column is used as the fallback key.
 	
+	By default the reduced file is named after the VCF with a `.loci` extension (so
+	`--vcf FAVIINAE_filtered.vcf` writes `FAVIINAE_filtered.loci`, ready to pair with
+	that VCF); if that name already exists it falls back to `<vcf>_invcf.loci`.
+	
 	Example:
-	  python3 ipyrad_reduce_loci_to_match_vcf.py --vcf data.vcf --loci data.loci       --output data_invcf.loci
+	  python3 ipyrad_reduce_loci_to_match_vcf.py --vcf FAVIINAE_filtered.vcf       --loci FAVIINAE.loci
 	
 	options:
 	  -h, --help            show this help message and exit
@@ -331,8 +335,10 @@ so the output is a valid `.loci` file containing only the retained loci. *[File 
 	  -l loci_file, --loci loci_file
 	                        input ipyrad `.loci` file to reduce
 	  -o loci_file, --output loci_file
-	                        output `.loci` file (default: derived from the vcf
-	                        name, `<vcf>_invcf.loci`)
+	                        output `.loci` file (default: the vcf name with a
+	                        `.loci` extension, e.g. FAVIINAE_filtered.vcf ->
+	                        FAVIINAE_filtered.loci; falls back to
+	                        `<vcf>_invcf.loci` if that already exists)
 	
 
 

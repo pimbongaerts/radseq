@@ -10,9 +10,13 @@ Loci are matched by their integer locus id. ipyrad writes that id into the VCF
 `// ... |<N>...|`). When the VCF has no `loc<N>` ids (e.g. a de novo VCF whose
 `CHROM` is the locus number) the `CHROM` column is used as the fallback key.
 
+By default the reduced file is named after the VCF with a `.loci` extension (so
+`--vcf FAVIINAE_filtered.vcf` writes `FAVIINAE_filtered.loci`, ready to pair with
+that VCF); if that name already exists it falls back to `<vcf>_invcf.loci`.
+
 Example:
-  python3 ipyrad_reduce_loci_to_match_vcf.py --vcf data.vcf --loci data.loci \
-      --output data_invcf.loci
+  python3 ipyrad_reduce_loci_to_match_vcf.py --vcf FAVIINAE_filtered.vcf \
+      --loci FAVIINAE.loci
 """
 import os
 import re
@@ -88,7 +92,10 @@ def main(vcf_filename, loci_filename, out_filename):
     if not os.path.isfile(loci_filename):
         sys.exit('Error: loci file `{0}` not found.'.format(loci_filename))
     if not out_filename:
-        out_filename = os.path.splitext(vcf_filename)[0] + '_invcf.loci'
+        base = os.path.splitext(vcf_filename)[0]
+        out_filename = base + '.loci'
+        if os.path.exists(out_filename):        # don't clobber an existing file
+            out_filename = base + '_invcf.loci'
     if os.path.abspath(out_filename) == os.path.abspath(loci_filename):
         sys.exit('Error: output would overwrite the input loci file; use -o.')
 
@@ -118,7 +125,9 @@ if __name__ == '__main__':
                         help='input ipyrad `.loci` file to reduce')
     parser.add_argument('-o', '--output', dest='out_filename',
                         metavar='loci_file', default=None,
-                        help='output `.loci` file (default: derived from the vcf '
-                             'name, `<vcf>_invcf.loci`)')
+                        help='output `.loci` file (default: the vcf name with a '
+                             '`.loci` extension, e.g. FAVIINAE_filtered.vcf -> '
+                             'FAVIINAE_filtered.loci; falls back to '
+                             '`<vcf>_invcf.loci` if that already exists)')
     args = parser.parse_args()
     main(args.vcf_filename, args.loci_filename, args.out_filename)

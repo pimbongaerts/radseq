@@ -138,7 +138,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
                               [--min-cluster-size N] [--k K]
                               [--tree {upgma,nj}] [--ordination {pca,pcoa}]
                               [--loci loci_file] [--pops-from-sample-id]
-                              [--pdf-output pdf_file] [--no-pdf]
+                              [--fields names] [--pdf-output pdf_file]
+                              [--no-pdf]
 
 	Clones are non-independent samples that distort per-group allele frequencies and
 	therefore bias essentially every population-genetic measure (Fst, private and
@@ -166,7 +167,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	given - one dot-strip panel per metadata track (population from column 2 and,
 	if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 	delimited fields of the sample name) so each sample's category memberships line
-	up with its tip. PAGE 2 holds the analysis panels (metric-vs-K support curve,
+	up with its tip; the selected-K column is boxed, and tracks can be renamed with
+	`--fields`. PAGE 2 holds the analysis panels (metric-vs-K support curve,
 	per-sample silhouette, PCA/PCoA ordination with hulls, pairwise Fst and dxy
 	heatmaps, fixed differences, per-cluster private alleles, and optional shared/
 	unique loci).
@@ -221,6 +223,9 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	                        skipped); used instead of a popfile. A field with more
 	                        than 20 distinct values (e.g. a per-sample id) is
 	                        dropped
+	  --fields names        comma-separated names for the annotation tracks in
+	                        order (e.g. "location,depth"); overrides the default
+	                        track titles
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)

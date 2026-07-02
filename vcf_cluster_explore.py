@@ -31,7 +31,8 @@ columns, a % genotyped bar and - when a popfile (or `--pops-from-sample-id`) is
 given - one dot-strip panel per metadata track (population from column 2 and,
 if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 delimited fields of the sample name) so each sample's category memberships line
-up with its tip. PAGE 2 holds the analysis panels (metric-vs-K support curve,
+up with its tip; the selected-K column is boxed, and tracks can be renamed with
+`--fields`. PAGE 2 holds the analysis panels (metric-vs-K support curve,
 per-sample silhouette, PCA/PCoA ordination with hulls, pairwise Fst and dxy
 heatmaps, fixed differences, per-cluster private alleles, and optional shared/
 unique loci).
@@ -61,6 +62,7 @@ DEFAULT_METHOD = 'ibs'
 DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
 MAX_CATEGORIES = 20            # annotation tracks with more values are dropped
+TRACK_COLORS = ['0.0', '0.45', '0.7']   # one grey per field (black -> light)
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
 CSV_SUFFIX = '_clusters.csv'
@@ -679,7 +681,8 @@ def _make_track(name, assign, names):
     return {'name': name, 'assign': assign, 'values': values}
 
 
-def build_category_tracks(names, pop_filename, pops_from_sample_id):
+def build_category_tracks(names, pop_filename, pops_from_sample_id,
+                          field_names=None):
     """ Build the metadata annotation tracks drawn beside the tree, each a
     sample->category mapping visualised as one dot per sample on an x-axis of
     that category's distinct values.
@@ -687,28 +690,39 @@ def build_category_tracks(names, pop_filename, pops_from_sample_id):
     With `--pops-from-sample-id` three tracks come from the 2nd, 3rd and 4th
     `_`-delimited fields of each sample name (the 1st field is skipped). From a
     popfile: a `population` track (column 2) and, when a 3rd column is present, a
-    `lineage / region` track (column 3). Returns a (possibly empty) list of
-    tracks; tracks with no usable values, or with more than MAX_CATEGORIES
-    distinct values (e.g. a per-sample id field), are dropped (with a note). """
+    `lineage / region` track (column 3). `field_names` (e.g. from `--fields
+    location,depth`) overrides the default track titles positionally (name 1 =
+    field 2 / population, name 2 = field 3 / lineage, ...). Returns a (possibly
+    empty) list of tracks; tracks with no usable values, or with more than
+    MAX_CATEGORIES distinct values (e.g. a per-sample id field), are dropped
+    (with a note). """
+    field_names = field_names or []
+
+    def title_for(pos, default):
+        return field_names[pos] if pos < len(field_names) else default
+
     tracks = []
     if pops_from_sample_id:
-        for title, idx in (('id field 2', 1), ('id field 3', 2),
-                           ('id field 4', 3)):
+        for pos, (default, idx) in enumerate((('id field 2', 1),
+                                              ('id field 3', 2),
+                                              ('id field 4', 3))):
             assign = {}
             for nm in names:
                 parts = nm.split('_')
                 if len(parts) > idx:
                     assign[nm] = parts[idx]
             if assign:
-                tracks.append(_make_track(title, assign, names))
+                tracks.append(_make_track(title_for(pos, default), assign,
+                                          names))
     elif pop_filename:
         indivs_pops, indivs_lineages = \
             vcf_clone_detect.get_assignments_from_popfile(pop_filename)
         if any(nm in indivs_pops for nm in names):
-            tracks.append(_make_track('population', indivs_pops, names))
-        if any(nm in indivs_lineages for nm in names):
-            tracks.append(_make_track('lineage / region', indivs_lineages,
+            tracks.append(_make_track(title_for(0, 'population'), indivs_pops,
                                       names))
+        if any(nm in indivs_lineages for nm in names):
+            tracks.append(_make_track(title_for(1, 'lineage / region'),
+                                      indivs_lineages, names))
     kept = []
     for track in tracks:
         n_values = len(track['values'])
@@ -723,24 +737,23 @@ def build_category_tracks(names, pop_filename, pops_from_sample_id):
     return kept
 
 
-def draw_category_track(ax, track, tip_y, ylim, dot_size):
+def draw_category_track(ax, track, tip_y, ylim, dot_size, color):
     """ Draw one annotation track aligned to the tree tips: for every sample a
-    coloured dot at the x-position of its category value (categories along the
-    x-axis, samples along the shared tree y-axis). """
+    dot at the x-position of its category value (categories along the x-axis,
+    samples along the shared tree y-axis). All dots of a track share one colour
+    (the value is read off the x-axis, not the colour). """
     values = track['values']
     vidx = {v: i for i, v in enumerate(values)}
-    palette = cluster_palette(max(len(values), 1))
     for i in range(len(values)):
         ax.axvline(i, color='0.92', lw=0.5, zorder=0)
-    xs, ys, cols = [], [], []
+    xs, ys = [], []
     for nm, y in tip_y.items():
         value = track['assign'].get(nm)
         if value is None:
             continue
         xs.append(vidx[value])
         ys.append(y)
-        cols.append(palette[vidx[value]])
-    ax.scatter(xs, ys, s=dot_size, c=cols, edgecolor='none', zorder=3)
+    ax.scatter(xs, ys, s=dot_size, color=color, edgecolor='none', zorder=3)
     ax.set_xlim(-0.5, len(values) - 0.5)
     ax.set_ylim(ylim)
     ax.set_yticks([])
@@ -840,11 +853,18 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
     ax_k.set_ylim(ylim)
     ax_k.set_yticks([])
     ax_k.set_xticks([c + 0.5 for c in range(n_cols)])
-    ax_k.set_xticklabels(
-        ['K={0}{1}'.format(r['K'], '*' if r['K'] == selected['K'] else '')
-         for r in display], fontsize=6, rotation=90)
+    ax_k.set_xticklabels(['K={0}'.format(r['K']) for r in display],
+                         fontsize=6, rotation=90)
     ax_k.tick_params(length=0)
     ax_k.set_title('cluster @ K', fontsize=7)
+    # Highlight the selected-K column with a thick black border + bold label
+    sel_col = next((i for i, r in enumerate(display)
+                    if r['K'] == selected['K']), None)
+    if sel_col is not None:
+        y0, y1 = min(ylim), max(ylim)
+        ax_k.add_patch(Rectangle((sel_col, y0), 1, y1 - y0, fill=False,
+                                 edgecolor='black', lw=2.5, zorder=5))
+        ax_k.get_xticklabels()[sel_col].set_fontweight('bold')
 
     # --- % genotyped bar -----------------------------------------------------
     ax_bar = ax_in(left_margin + tree_w + 0.1 + kcol_w + 0.15, top_margin,
@@ -862,11 +882,13 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
     despine(ax_bar)
 
     # --- metadata annotation tracks (population / lineage / sample-id) -------
+    # one grey per field (cycled) so a track reads as a single category axis
     x_track = left_margin + tree_w + 0.1 + kcol_w + 0.15 + bar_w
-    for track, tw in zip(category_tracks, track_ws):
+    for i, (track, tw) in enumerate(zip(category_tracks, track_ws)):
         x_track += track_gap
         ax_t = ax_in(x_track, top_margin, tw, tree_h)
-        draw_category_track(ax_t, track, tip_y, ylim, dot_size)
+        color = TRACK_COLORS[i % len(TRACK_COLORS)]
+        draw_category_track(ax_t, track, tip_y, ylim, dot_size, color)
         x_track += tw
 
     pdf.savefig(fig)
@@ -1115,7 +1137,7 @@ def cluster_size_map(labels, clusters):
 def main(vcf_filename, pop_filename, output_filename, method, max_k,
          min_cluster_size, force_k, tree_mode, ordination,
          clone_list, clone_threshold, auto_clone, loci_filename,
-         pops_from_sample_id, make_pdf, pdf_output):
+         pops_from_sample_id, field_names, make_pdf, pdf_output):
 
     print('###1 - Loading VCF (method: {0})'.format(method))
     if not vcf_filename:
@@ -1256,7 +1278,7 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
         perc_genotyped = {nm: 100.0 * geno[i] / data['n_loci']
                           for i, nm in enumerate(data['names'])}
         category_tracks = build_category_tracks(data['names'], pop_filename,
-                                                pops_from_sample_id)
+                                                pops_from_sample_id, field_names)
         if category_tracks:
             print('Annotation tracks: {0}'.format(
                 ', '.join('{0} ({1})'.format(t['name'], len(t['values']))
@@ -1335,14 +1357,21 @@ if __name__ == '__main__':
                              'skipped); used instead of a popfile. A field with '
                              'more than {0} distinct values (e.g. a per-sample '
                              'id) is dropped'.format(MAX_CATEGORIES))
+    parser.add_argument('--fields', dest='field_names', metavar='names',
+                        default=None,
+                        help='comma-separated names for the annotation tracks '
+                             'in order (e.g. "location,depth"); overrides the '
+                             'default track titles')
     parser.add_argument('--pdf-output', dest='pdf_output', default=None,
                         metavar='pdf_file', help='filename for the PDF report')
     parser.add_argument('--no-pdf', dest='no_pdf', action='store_true',
                         help='do not generate the PDF report (text only)')
     args = parser.parse_args()
+    field_names = ([s.strip() for s in args.field_names.split(',')]
+                   if args.field_names else None)
     main(args.vcf_filename, args.pop_filename, args.output_filename,
          args.method, args.max_k, args.min_cluster_size,
          args.force_k, args.tree_mode, args.ordination, args.clone_list,
          args.clone_threshold, args.auto_clone, args.loci_filename,
-         args.pops_from_sample_id, make_pdf=not args.no_pdf,
+         args.pops_from_sample_id, field_names, make_pdf=not args.no_pdf,
          pdf_output=args.pdf_output)

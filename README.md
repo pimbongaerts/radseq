@@ -127,7 +127,7 @@ terminal with `$ chmod +x vcf_spider.py`.
 
 **[vcf_cluster_explore.py](vcf_cluster_explore.py)** - Explores the deeper genetic clusters (lineages) in a `.vcf` dataset in a way
 that is NOT biased by the presence of clones. Where `vcf_clone_detect.py` asks
-"which individuals are near-identical (clones)", this script asks "what are the
+"which samples are near-identical (clones)", this script asks "what are the
 genetic groups, how many of them are there, and how differentiated are they". *[File did not pass PEP8 check]*
 
 	usage: vcf_cluster_explore.py [-h] [-v vcf_file] [-p pop_file]
@@ -145,14 +145,14 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	therefore bias essentially every population-genetic measure (Fst, private and
 	fixed-private alleles, heterozygosity, ordination, and even the clustering
 	itself). By default the script does NOT remove clones - it runs on all
-	individuals as given (use this when the input is already clone-corrected, or to
+	samples as given (use this when the input is already clone-corrected, or to
 	inspect the raw structure). Optional CLONE-CORRECTION reduces each clonal genet
 	to a single representative ramet (the one with the least missing data) and runs
 	the entire analysis - similarity, tree, K-evaluation and all differentiation
 	statistics - on that clone-corrected (genet) set. Enable it with `--auto-clone`
 	(clonal genets detected internally by reusing `vcf_clone_detect.py` at an auto-
 	inferred threshold), `--clone-threshold PCT` (manual threshold), or
-	`--clone-list FILE` (external list of samples to drop, e.g. the "individuals to
+	`--clone-list FILE` (external list of samples to drop, e.g. the "samples to
 	remove" output of `vcf_clone_detect.py`).
 	
 	The script (1) computes pairwise genetic similarities (`--method`, default
@@ -161,21 +161,21 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	genetic-similarity cut-off that splits the tree into K groups, the merge-height
 	separation gap, and the silhouette width, and picks the best K by silhouette
 	(robust to between-cluster GD overlap, unlike the raw gap), (4) assigns every
-	individual to a cluster at each K, and (5) produces a two-page PDF. PAGE 1 is a
+	sample to a cluster at each K, and (5) produces a two-page PDF. PAGE 1 is a
 	full-page-width tree with readable tip labels, the per-K cluster-assignment
 	columns, a % genotyped bar and - when a popfile (or `--pops-from-sample-id`) is
 	given - one dot-strip panel per metadata track (population from column 2 and,
 	if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 	delimited fields of the sample name) so each sample's category memberships line
 	up with its tip; the selected-K column is boxed, and tracks can be renamed with
-	`--fields`. PAGE 2 is a row-based grid: (row 1) ordination axes 1-vs-2 and
-	2-vs-3 with hulls, plus a fanned circular tree with cluster-coloured branches
-	and tips; (row 2) the metric-vs-K support curve and per-sample silhouette; (row
-	3, with tracks) one stacked bar per field showing how the clusters distribute
-	across that field's categories; (row 4) differentiation heatmaps - shared loci
-	(or shared genotyped SNPs without a `.loci` file), pairwise private alleles
-	excluding singletons, and fixed differences requiring >= 2 individuals per
-	cluster.
+	`--fields`. PAGE 2 is a fixed A4 page (for supplementary docs), a row-based
+	grid: (row 1) a fanned circular tree with cluster-coloured branches/tips, then
+	ordination axes 1-vs-2 and 2-vs-3 with hulls; (row 2) the metric-vs-K support
+	curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
+	showing how the clusters distribute across that field's categories; (row 4)
+	white-yellow-red differentiation heatmaps - shared loci (or shared genotyped
+	SNPs without a `.loci` file), pairwise private alleles excluding singletons, and
+	fixed differences (all counted over sites with >= 2 samples per cluster).
 	
 	The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 	cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -207,7 +207,7 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	                        (e.g. vcf_clone_detect "to remove" output)
 	  --clone-threshold pct
 	                        clone-correct using this manual similarity % threshold
-	                        above which individuals are clones
+	                        above which samples are clones
 	  --max-k K             maximum K to evaluate (default: 10)
 	  --min-cluster-size N  clusters smaller than this exclude a K from being
 	                        chosen as best (default: 2)

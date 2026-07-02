@@ -2,21 +2,21 @@
 """
 Explores the deeper genetic clusters (lineages) in a `.vcf` dataset in a way
 that is NOT biased by the presence of clones. Where `vcf_clone_detect.py` asks
-"which individuals are near-identical (clones)", this script asks "what are the
+"which samples are near-identical (clones)", this script asks "what are the
 genetic groups, how many of them are there, and how differentiated are they".
 
 Clones are non-independent samples that distort per-group allele frequencies and
 therefore bias essentially every population-genetic measure (Fst, private and
 fixed-private alleles, heterozygosity, ordination, and even the clustering
 itself). By default the script does NOT remove clones - it runs on all
-individuals as given (use this when the input is already clone-corrected, or to
+samples as given (use this when the input is already clone-corrected, or to
 inspect the raw structure). Optional CLONE-CORRECTION reduces each clonal genet
 to a single representative ramet (the one with the least missing data) and runs
 the entire analysis - similarity, tree, K-evaluation and all differentiation
 statistics - on that clone-corrected (genet) set. Enable it with `--auto-clone`
 (clonal genets detected internally by reusing `vcf_clone_detect.py` at an auto-
 inferred threshold), `--clone-threshold PCT` (manual threshold), or
-`--clone-list FILE` (external list of samples to drop, e.g. the "individuals to
+`--clone-list FILE` (external list of samples to drop, e.g. the "samples to
 remove" output of `vcf_clone_detect.py`).
 
 The script (1) computes pairwise genetic similarities (`--method`, default
@@ -25,21 +25,21 @@ linkage tree, (3) evaluates K = 2 .. `--max-k`, reporting for each K the
 genetic-similarity cut-off that splits the tree into K groups, the merge-height
 separation gap, and the silhouette width, and picks the best K by silhouette
 (robust to between-cluster GD overlap, unlike the raw gap), (4) assigns every
-individual to a cluster at each K, and (5) produces a two-page PDF. PAGE 1 is a
+sample to a cluster at each K, and (5) produces a two-page PDF. PAGE 1 is a
 full-page-width tree with readable tip labels, the per-K cluster-assignment
 columns, a % genotyped bar and - when a popfile (or `--pops-from-sample-id`) is
 given - one dot-strip panel per metadata track (population from column 2 and,
 if present, a lineage/species/region from column 3; or the 2nd/3rd/4th `_`-
 delimited fields of the sample name) so each sample's category memberships line
 up with its tip; the selected-K column is boxed, and tracks can be renamed with
-`--fields`. PAGE 2 is a row-based grid: (row 1) ordination axes 1-vs-2 and
-2-vs-3 with hulls, plus a fanned circular tree with cluster-coloured branches
-and tips; (row 2) the metric-vs-K support curve and per-sample silhouette; (row
-3, with tracks) one stacked bar per field showing how the clusters distribute
-across that field's categories; (row 4) differentiation heatmaps - shared loci
-(or shared genotyped SNPs without a `.loci` file), pairwise private alleles
-excluding singletons, and fixed differences requiring >= 2 individuals per
-cluster.
+`--fields`. PAGE 2 is a fixed A4 page (for supplementary docs), a row-based
+grid: (row 1) a fanned circular tree with cluster-coloured branches/tips, then
+ordination axes 1-vs-2 and 2-vs-3 with hulls; (row 2) the metric-vs-K support
+curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
+showing how the clusters distribute across that field's categories; (row 4)
+white-yellow-red differentiation heatmaps - shared loci (or shared genotyped
+SNPs without a `.loci` file), pairwise private alleles excluding singletons, and
+fixed differences (all counted over sites with >= 2 samples per cluster).
 
 The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 cut to give every K-assignment, so the tree and the columns are always coherent.
@@ -66,7 +66,7 @@ DEFAULT_METHOD = 'ibs'
 DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
 MAX_CATEGORIES = 20            # annotation tracks with more values are dropped
-NAME_TRIM = 20                 # tree tip labels are trimmed to this many chars
+NAME_TRIM = 32                 # tree tip labels are trimmed to this many chars
 TRACK_COLORS = ['0.0', '0.45', '0.7']   # one grey per field (black -> light)
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
@@ -390,9 +390,9 @@ def pairwise_private_no_singletons(stats):
 
 
 def pairwise_fixed_diff_min2(stats):
-    """ Pairwise fixed-difference counts requiring >= 2 genotyped individuals in
+    """ Pairwise fixed-difference counts requiring >= 2 genotyped samples in
     BOTH clusters at a site (so a difference is never called off a single
-    individual). Symmetric KxK int matrix. """
+    sample). Symmetric KxK int matrix. """
     n_clusters = stats['n_clusters']
     freq, ncall = stats['freq'], stats['ncall']
     fixed = np.zeros((n_clusters, n_clusters), dtype=int)
@@ -406,35 +406,38 @@ def pairwise_fixed_diff_min2(stats):
 
 
 def pairwise_shared_snps(stats):
-    """ Number of SNP sites genotyped in both clusters, for every cluster pair
-    (the SNP-based fallback for shared loci when no `.loci` file is given).
-    Symmetric KxK int matrix (NaN-free). """
+    """ Number of SNP sites genotyped in >= 2 samples of both clusters, for every
+    cluster pair (the SNP-based fallback for shared loci when no `.loci` file is
+    given; the >= 2 rule matches the other differentiation panels). Symmetric
+    KxK int matrix (NaN-free). """
     n_clusters = stats['n_clusters']
-    has_data = stats['has_data']
+    ncall = stats['ncall']
     shared = np.zeros((n_clusters, n_clusters), dtype=int)
     for a in range(n_clusters):
         for b in range(n_clusters):
             if a != b:
-                shared[a, b] = int((has_data[a] & has_data[b]).sum())
+                shared[a, b] = int(((ncall[a] >= 2) & (ncall[b] >= 2)).sum())
     return shared
 
 
 def shared_loci_matrix(presence, labels, names):
-    """ Number of loci recovered in >= 1 sample of both clusters, for every
-    cluster pair (from an ipyrad `.loci` presence list). Symmetric KxK int. """
+    """ Number of loci recovered in >= 2 samples of both clusters, for every
+    cluster pair (from an ipyrad `.loci` presence list; the >= 2 rule matches
+    the other differentiation panels). Symmetric KxK int. """
     name_cluster = {nm: int(labels[i]) for i, nm in enumerate(names)}
     clusters = sorted(set(name_cluster.values()))
     cidx = {c: i for i, c in enumerate(clusters)}
     k = len(clusters)
-    present_any = np.zeros((k, len(presence)), dtype=bool)
+    counts = np.zeros((k, len(presence)), dtype=int)     # samples/cluster/locus
     for li, locus in enumerate(presence):
         for nm in locus:
-            present_any[cidx[name_cluster[nm]], li] = True
+            counts[cidx[name_cluster[nm]], li] += 1
+    present2 = counts >= 2
     shared = np.zeros((k, k), dtype=int)
     for a in range(k):
         for b in range(k):
             if a != b:
-                shared[a, b] = int((present_any[a] & present_any[b]).sum())
+                shared[a, b] = int((present2[a] & present2[b]).sum())
     return shared
 
 
@@ -554,7 +557,7 @@ def locus_sharing_stats(presence, labels, names):
 
 
 def ordinate(dosage, dist, kind, n_comp=3):
-    """ Ordination of individuals on the first `n_comp` axes. Returns
+    """ Ordination of samples on the first `n_comp` axes. Returns
     (coords[n, n_comp], pct_var[n_comp]). """
     if kind == 'pca':
         geno = dosage.T.astype(float)            # samples x sites
@@ -803,7 +806,11 @@ def despine(ax):
 
 
 def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels):
-    """ Draw a KxK cluster-pair heatmap (NaN diagonal) with cell annotations. """
+    """ Draw a KxK cluster-pair heatmap (NaN diagonal) with cell annotations.
+    Annotation text colour follows each cell's background luminance, so it stays
+    legible on any colormap (including the light end of white->yellow->red). """
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import Normalize
     disp = np.array(mat, dtype=float)
     np.fill_diagonal(disp, np.nan)
     image = ax.imshow(disp, cmap=cmap, aspect='auto')
@@ -811,13 +818,18 @@ def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels):
     ax.set_yticks(range(n_clusters))
     ax.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
     ax.set_yticklabels(cluster_labels, fontsize=6)
-    hi = np.nanmax(disp) if np.isfinite(disp).any() else 1.0
+    finite = disp[np.isfinite(disp)]
+    lo = float(finite.min()) if finite.size else 0.0
+    hi = float(finite.max()) if finite.size else 1.0
+    cmap_obj = plt.get_cmap(cmap)
+    norm = Normalize(vmin=lo, vmax=hi)
     for a in range(n_clusters):
         for b in range(n_clusters):
             if a != b and np.isfinite(disp[a, b]):
-                ax.text(b, a, fmt.format(mat[a][b]), ha='center',
-                        va='center', fontsize=5,
-                        color='white' if disp[a, b] < hi / 2 else 'black')
+                r, g, bl, _ = cmap_obj(norm(disp[a, b]))
+                lum = 0.299 * r + 0.587 * g + 0.114 * bl
+                ax.text(b, a, fmt.format(mat[a][b]), ha='center', va='center',
+                        fontsize=5, color='black' if lum > 0.5 else 'white')
     ax.set_title(title, fontsize=8)
     fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
 
@@ -1061,8 +1073,8 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
 def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                         data, method, ordination, tree_mode, colors_by_k,
                         category_tracks, loci_presence):
-    """ PAGE 2 - analysis panels in a row-based grid:
-      ROW 1: ordination axes 1v2 | ordination axes 2v3 | fanned circular tree
+    """ PAGE 2 (fixed A4) - analysis panels in a row-based grid:
+      ROW 1: fanned circular tree | ordination axes 1v2 | ordination axes 2v3
              (all coloured by cluster, so differentiated groups pop out).
       ROW 2: metric-vs-K support curve | per-sample silhouette.
       ROW 3 (only with annotation tracks): one stacked bar per field showing how
@@ -1070,7 +1082,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
              per field).
       ROW 4 (differentiation): shared loci (or shared genotyped SNPs when no
              `.loci`) | pairwise private alleles excluding singletons | fixed
-             differences (>= 2 individuals per cluster). """
+             differences (>= 2 samples per cluster). """
     import matplotlib.pyplot as plt
     from matplotlib.patches import Polygon
     from scipy.spatial import ConvexHull
@@ -1213,33 +1225,33 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
     fixed_diff = pairwise_fixed_diff_min2(stats)
 
     def draw_shared(ax):
-        draw_heatmap(fig, ax, shared, 'YlGnBu', '{0:d}', shared_title,
+        draw_heatmap(fig, ax, shared, 'YlOrRd', '{0:d}', shared_title,
                      n_clusters, cluster_labels)
 
     def draw_priv_pair(ax):
-        draw_heatmap(fig, ax, priv_pair, 'magma', '{0:d}',
+        draw_heatmap(fig, ax, priv_pair, 'YlOrRd', '{0:d}',
                      'Private alleles (pairwise, no singletons)',
                      n_clusters, cluster_labels)
 
     def draw_fixed(ax):
-        draw_heatmap(fig, ax, fixed_diff, 'inferno', '{0:d}',
-                     'Fixed differences (>=2 indiv/cluster)',
+        draw_heatmap(fig, ax, fixed_diff, 'YlOrRd', '{0:d}',
+                     'Fixed differences (>=2 samples/cluster)',
                      n_clusters, cluster_labels)
 
     # --- assemble rows (each row is a list of panel callables) ---------------
-    rows = [[make_ordination(0, 1), make_ordination(1, 2), draw_circular],
+    rows = [[draw_circular, make_ordination(0, 1), make_ordination(1, 2)],
             [draw_a1, draw_a2]]
     if category_tracks:
         rows.append([make_field_dist(t) for t in category_tracks])
     rows.append([draw_shared, draw_priv_pair, draw_fixed])
 
+    # Fixed A4 portrait canvas so page 2 drops straight into supplementary docs
+    fig_w, fig_h = 8.27, 11.69
+    margin, col_gap, row_gap = 0.5, 0.6, 0.7
     n_rows = len(rows)
-    max_cols = max(len(r) for r in rows)
-    base_cell = 4.6
-    col_gap, row_gap, margin, row_h = 0.9, 0.9, 0.6, 3.2
-    content_w = max_cols * base_cell + (max_cols - 1) * col_gap
-    fig_w = 2 * margin + content_w
-    fig_h = 2 * margin + n_rows * row_h + (n_rows - 1) * row_gap
+    content_w = fig_w - 2 * margin
+    content_h = fig_h - 2 * margin
+    row_h = (content_h - (n_rows - 1) * row_gap) / n_rows
     fig = plt.figure(figsize=(fig_w, fig_h))
     ax_in = make_ax_in(fig, fig_w, fig_h)
     for ri, row in enumerate(rows):
@@ -1338,7 +1350,7 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
     data, removed, info = clone_correct(data, method, clone_list,
                                         clone_threshold, auto_clone)
     n_units = len(data['names'])
-    unit = 'genets' if removed else 'individuals'
+    unit = 'genets' if removed else 'samples'
     print('{0} samples -> {1} {2} ({3} removed); {4}'.format(
         n_total, n_units, unit, len(removed), info))
     if n_units < 3:
@@ -1512,7 +1524,7 @@ if __name__ == '__main__':
     parser.add_argument('--clone-threshold', dest='clone_threshold',
                         metavar='pct', default=None,
                         help='clone-correct using this manual similarity %% '
-                             'threshold above which individuals are clones')
+                             'threshold above which samples are clones')
     parser.add_argument('--max-k', dest='max_k', type=int, default=DEF_MAX_K,
                         metavar='K', help='maximum K to evaluate (default: '
                         '{0})'.format(DEF_MAX_K))

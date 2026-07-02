@@ -244,8 +244,8 @@ automatically when present, and the CSV + PDF outputs are written with their
 default names into the folder that contains the VCF (so each dataset's results
 sit next to its input). *[File did not pass PEP8 check]*
 
-	usage: vcf_cluster_explore_all.py [-h] [--pattern glob] [--script path]
-                                  [--dry-run]
+	usage: vcf_cluster_explore_all.py [-h] [--postfix str] [--pattern glob]
+                                  [--script path] [--dry-run]
                                   [-m {ibs,het-masked,dosage,single-read}]
                                   [--auto-clone] [--clone-threshold pct]
                                   [--max-k K] [--min-cluster-size N] [--k K]
@@ -261,11 +261,14 @@ sit next to its input). *[File did not pass PEP8 check]*
 	options (`--vcf`, `--loci`, `--output`, `--pop`, `--pdf-output`) are handled
 	per-VCF by this wrapper and are intentionally not forwarded.
 	
+	Use `--postfix` to target a specific set of VCFs by basename suffix (e.g.
+	`--postfix _filtered` matches `*_filtered.vcf`), or `--pattern` for a full glob.
+	
 	Each VCF is run in its own subprocess, so one failing dataset does not stop the
 	batch; a summary of successes/failures is printed at the end.
 	
 	Example:
-	  python3 vcf_cluster_explore_all.py datasets/ --pops-from-sample-id       --fields species,location,depth
+	  python3 vcf_cluster_explore_all.py datasets/ --postfix _filtered       --pops-from-sample-id --fields species,location,depth
 	
 	positional arguments:
 	  root                  directory to search recursively for VCFs (default:
@@ -273,7 +276,11 @@ sit next to its input). *[File did not pass PEP8 check]*
 	
 	options:
 	  -h, --help            show this help message and exit
-	  --pattern glob        filename glob for VCFs (default: *.vcf)
+	  --postfix str         only use VCFs whose basename ends with this before
+	                        `.vcf` (e.g. --postfix _filtered matches
+	                        *_filtered.vcf); default: all *.vcf
+	  --pattern glob        full filename glob for VCFs (overrides --postfix;
+	                        default: *<postfix>.vcf)
 	  --script path         path to vcf_cluster_explore.py (default: the copy
 	                        alongside this wrapper)
 	  --dry-run             list the VCFs and the commands without running them

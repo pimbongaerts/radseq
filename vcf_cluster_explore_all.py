@@ -12,12 +12,15 @@ applied to every dataset (e.g. `--pops-from-sample-id`, `--fields`, `--method`,
 options (`--vcf`, `--loci`, `--output`, `--pop`, `--pdf-output`) are handled
 per-VCF by this wrapper and are intentionally not forwarded.
 
+Use `--postfix` to target a specific set of VCFs by basename suffix (e.g.
+`--postfix _filtered` matches `*_filtered.vcf`), or `--pattern` for a full glob.
+
 Each VCF is run in its own subprocess, so one failing dataset does not stop the
 batch; a summary of successes/failures is printed at the end.
 
 Example:
-  python3 vcf_cluster_explore_all.py datasets/ --pops-from-sample-id \
-      --fields species,location,depth
+  python3 vcf_cluster_explore_all.py datasets/ --postfix _filtered \
+      --pops-from-sample-id --fields species,location,depth
 """
 import os
 import sys
@@ -74,9 +77,14 @@ def main():
     parser.add_argument('root', nargs='?', default='.',
                         help='directory to search recursively for VCFs '
                              '(default: current directory)')
-    parser.add_argument('--pattern', dest='pattern', default='*.vcf',
+    parser.add_argument('--postfix', dest='postfix', default='', metavar='str',
+                        help='only use VCFs whose basename ends with this before '
+                             '`.vcf` (e.g. --postfix _filtered matches '
+                             '*_filtered.vcf); default: all *.vcf')
+    parser.add_argument('--pattern', dest='pattern', default=None,
                         metavar='glob',
-                        help='filename glob for VCFs (default: *.vcf)')
+                        help='full filename glob for VCFs (overrides --postfix; '
+                             'default: *<postfix>.vcf)')
     parser.add_argument('--script', dest='script', default=None,
                         metavar='path',
                         help='path to vcf_cluster_explore.py (default: the copy '
@@ -126,12 +134,13 @@ def main():
     if not os.path.isfile(script):
         sys.exit('Error: cannot find `{0}` (use --script).'.format(script))
 
-    vcfs = find_vcfs(args.root, args.pattern)
+    pattern = args.pattern if args.pattern else '*{0}.vcf'.format(args.postfix)
+    vcfs = find_vcfs(args.root, pattern)
     if not vcfs:
-        sys.exit('No VCFs matching `{0}` under `{1}`.'.format(
-            args.pattern, args.root))
+        sys.exit('No VCFs matching `{0}` under `{1}`.'.format(pattern, args.root))
     forwarded = build_forwarded_args(args)
-    print('Found {0} VCF(s) under `{1}`.'.format(len(vcfs), args.root))
+    print('Found {0} VCF(s) matching `{1}` under `{2}`.'.format(
+        len(vcfs), pattern, args.root))
 
     n_ok = n_fail = 0
     for i, vcf in enumerate(vcfs, 1):

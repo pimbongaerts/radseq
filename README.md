@@ -10,6 +10,8 @@ This documentation is dynamically generated using the listed [README_compile.py]
 
 **[vcf_cluster_explore_all.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore_all.py)** - batch-run vcf_cluster_explore.py over every VCF found recursively (auto-detecting a matching .loci), writing default-named outputs beside each VCF
 
+**[vcf_reduce_loci.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_reduce_loci.py)** - reduce an ipyrad .loci file to just the loci present in a .vcf (matched by locus id)
+
 **[vcf_remap2genome.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_remap2genome.py)** - script to remap VCF from de novo RAD assembly back to a reference genome
 
 **[pyrad_find_caps_markers.py](https://github.com/pimbongaerts/radseq/blob/master/pyrad_find_caps_markers.py)** - search PyRAD output file for diagnostic CAPS loci that can distinguish two groups (or one group and all other samples)
@@ -303,6 +305,33 @@ sit next to its input). *[File did not pass PEP8 check]*
 	  --fields names        comma-separated names for the annotation tracks, e.g.
 	                        "species,location,depth"
 	  --no-pdf              do not generate the PDF reports (text only)
+	
+
+
+**[vcf_reduce_loci.py](vcf_reduce_loci.py)** - Reduce an ipyrad `.loci` file to just the loci that are present in a `.vcf`
+(i.e. the loci that still contributed at least one SNP to the VCF, e.g. after
+filtering). Each locus block in the `.loci` file is kept or dropped as a whole,
+so the output is a valid `.loci` file containing only the retained loci. *[File did not pass PEP8 check]*
+
+	usage: vcf_reduce_loci.py [-h] -v vcf_file -l loci_file [-o loci_file]
+
+	Loci are matched by their integer locus id. ipyrad writes that id into the VCF
+	`ID` column as `loc<N>_pos<M>` (and into each `.loci` separator line as
+	`// ... |<N>...|`). When the VCF has no `loc<N>` ids (e.g. a de novo VCF whose
+	`CHROM` is the locus number) the `CHROM` column is used as the fallback key.
+	
+	Example:
+	  python3 vcf_reduce_loci.py --vcf data.vcf --loci data.loci       --output data_invcf.loci
+	
+	options:
+	  -h, --help            show this help message and exit
+	  -v vcf_file, --vcf vcf_file
+	                        input `.vcf` file (defines which loci to keep)
+	  -l loci_file, --loci loci_file
+	                        input ipyrad `.loci` file to reduce
+	  -o loci_file, --output loci_file
+	                        output `.loci` file (default: derived from the vcf
+	                        name, `<vcf>_invcf.loci`)
 	
 
 

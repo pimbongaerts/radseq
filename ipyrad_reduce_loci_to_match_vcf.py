@@ -11,7 +11,7 @@ Loci are matched by their integer locus id. ipyrad writes that id into the VCF
 `CHROM` is the locus number) the `CHROM` column is used as the fallback key.
 
 Example:
-  python3 vcf_reduce_loci.py --vcf data.vcf --loci data.loci \
+  python3 ipyrad_reduce_loci_to_match_vcf.py --vcf data.vcf --loci data.loci \
       --output data_invcf.loci
 """
 import os

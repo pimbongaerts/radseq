@@ -831,7 +831,9 @@ def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels):
                 ax.text(b, a, fmt.format(mat[a][b]), ha='center', va='center',
                         fontsize=5, color='black' if lum > 0.5 else 'white')
     ax.set_title(title, fontsize=8)
-    fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+    cbar = fig.colorbar(image, ax=ax, fraction=0.046, pad=0.04)
+    cbar.ax.tick_params(labelsize=4.5)
+    cbar.ax.yaxis.get_offset_text().set_fontsize(4.5)
 
 
 # --------------------------------------------------------------------------- #

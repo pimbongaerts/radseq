@@ -8,6 +8,8 @@ This documentation is dynamically generated using the listed [README_compile.py]
 ## Recently added
 **[vcf_cluster_explore.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore.py)** - clone-insensitive exploration of genetic clusters/lineages (UPGMA tree, per-K cluster assignment and a multi-panel differentiation report)
 
+**[vcf_cluster_explore_all.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore_all.py)** - batch-run vcf_cluster_explore.py over every VCF found recursively (auto-detecting a matching .loci), writing default-named outputs beside each VCF
+
 **[vcf_remap2genome.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_remap2genome.py)** - script to remap VCF from de novo RAD assembly back to a reference genome
 
 **[pyrad_find_caps_markers.py](https://github.com/pimbongaerts/radseq/blob/master/pyrad_find_caps_markers.py)** - search PyRAD output file for diagnostic CAPS loci that can distinguish two groups (or one group and all other samples)
@@ -233,6 +235,67 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)
+	
+
+
+**[vcf_cluster_explore_all.py](vcf_cluster_explore_all.py)** - Batch-run `vcf_cluster_explore.py` over every `.vcf` found recursively under a
+directory. For each VCF a sibling `.loci` file with the same basename is used
+automatically when present, and the CSV + PDF outputs are written with their
+default names into the folder that contains the VCF (so each dataset's results
+sit next to its input). *[File did not pass PEP8 check]*
+
+	usage: vcf_cluster_explore_all.py [-h] [--pattern glob] [--script path]
+                                  [--dry-run]
+                                  [-m {ibs,het-masked,dosage,single-read}]
+                                  [--auto-clone] [--clone-threshold pct]
+                                  [--max-k K] [--min-cluster-size N] [--k K]
+                                  [--tree {upgma,nj}]
+                                  [--ordination {pca,pcoa}]
+                                  [--pops-from-sample-id] [--fields names]
+                                  [--no-pdf]
+                                  [root]
+
+	Any `vcf_cluster_explore.py` option that is not file-specific is exposed here and
+	applied to every dataset (e.g. `--pops-from-sample-id`, `--fields`, `--method`,
+	`--max-k`, `--tree`, `--ordination`, `--auto-clone`, `--no-pdf`). The per-file
+	options (`--vcf`, `--loci`, `--output`, `--pop`, `--pdf-output`) are handled
+	per-VCF by this wrapper and are intentionally not forwarded.
+	
+	Each VCF is run in its own subprocess, so one failing dataset does not stop the
+	batch; a summary of successes/failures is printed at the end.
+	
+	Example:
+	  python3 vcf_cluster_explore_all.py datasets/ --pops-from-sample-id       --fields species,location,depth
+	
+	positional arguments:
+	  root                  directory to search recursively for VCFs (default:
+	                        current directory)
+	
+	options:
+	  -h, --help            show this help message and exit
+	  --pattern glob        filename glob for VCFs (default: *.vcf)
+	  --script path         path to vcf_cluster_explore.py (default: the copy
+	                        alongside this wrapper)
+	  --dry-run             list the VCFs and the commands without running them
+	  -m {ibs,het-masked,dosage,single-read}, --method {ibs,het-masked,dosage,single-read}
+	                        similarity measure (default: ibs)
+	  --auto-clone          clone-correct using an auto-inferred threshold
+	  --clone-threshold pct
+	                        clone-correct using this manual similarity % threshold
+	  --max-k K             maximum K to evaluate (default: 10)
+	  --min-cluster-size N  clusters smaller than this cannot be chosen as best K
+	                        (default: 2)
+	  --k K                 force which K drives the differentiation panels
+	                        (default: best-supported K)
+	  --tree {upgma,nj}     tree to draw (default: upgma)
+	  --ordination {pca,pcoa}
+	                        ordination for the scatter panels (default: pca)
+	  --pops-from-sample-id
+	                        derive annotation tracks from the sample name fields
+	                        (see vcf_cluster_explore.py)
+	  --fields names        comma-separated names for the annotation tracks, e.g.
+	                        "species,location,depth"
+	  --no-pdf              do not generate the PDF reports (text only)
 	
 
 

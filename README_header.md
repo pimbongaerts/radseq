@@ -8,6 +8,8 @@ This documentation is dynamically generated using the listed [README_compile.py]
 ## Recently added
 **[vcf_cluster_explore.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore.py)** - clone-insensitive exploration of genetic clusters/lineages (UPGMA tree, per-K cluster assignment and a multi-panel differentiation report)
 
+**[vcf_cluster_explore_all.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_cluster_explore_all.py)** - batch-run vcf_cluster_explore.py over every VCF found recursively (auto-detecting a matching .loci), writing default-named outputs beside each VCF
+
 **[vcf_remap2genome.py](https://github.com/pimbongaerts/radseq/blob/master/vcf_remap2genome.py)** - script to remap VCF from de novo RAD assembly back to a reference genome
 
 **[pyrad_find_caps_markers.py](https://github.com/pimbongaerts/radseq/blob/master/pyrad_find_caps_markers.py)** - search PyRAD output file for diagnostic CAPS loci that can distinguish two groups (or one group and all other samples)

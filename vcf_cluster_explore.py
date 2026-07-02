@@ -1301,7 +1301,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
 
     # Fixed A4 portrait canvas so page 2 drops straight into supplementary docs
     fig_w, fig_h = 8.27, 11.69
-    margin, col_gap, row_gap = 0.5, 0.6, 0.7
+    margin, col_gap, row_gap = 0.5, 0.85, 0.7    # wide gap clears axis labels
     n_rows = len(rows)
     content_w = fig_w - 2 * margin
     content_h = fig_h - 2 * margin

@@ -68,6 +68,7 @@ DEF_MAX_K = 10
 DEF_MIN_CLUSTER_SIZE = 2
 MAX_CATEGORIES = 20            # annotation tracks with more values are dropped
 NAME_TRIM = 32                 # tree tip labels are trimmed to this many chars
+SPECIES_NAME_THRESHOLD = 0.75  # >this fraction one species -> name cluster by it
 TRACK_COLORS = ['0.0', '0.45', '0.7']   # one grey per field (black -> light)
 CLONE_FLOOR = vcf_clone_detect.DEF_THRESHOLD   # only pairs >= this can be clones
 
@@ -808,14 +809,16 @@ def despine(ax):
 
 
 def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels,
-                 show_diagonal=False):
+                 label_colors=None, show_diagonal=False):
     """ Draw a KxK cluster-pair heatmap with cell annotations. The diagonal is
     blanked (NaN) unless `show_diagonal` is set - used for the shared loci / SNPs
-    panels, whose diagonal is each cluster's own total. Annotation text colour
-    follows each cell's background luminance, so it stays legible on any colormap
-    (including the light end of white->yellow->red). """
+    panels, whose diagonal is each cluster's own total. When `label_colors` (one
+    per cluster) is given, each C-axis tick label sits on a coloured chip in its
+    cluster's colour, so the heatmap ties directly to the cluster-coloured panels
+    above it. Annotation text colour follows each cell's background luminance, so
+    it stays legible on any colormap (including the light end of the map). """
     import matplotlib.pyplot as plt
-    from matplotlib.colors import Normalize
+    from matplotlib.colors import Normalize, to_rgb
     disp = np.array(mat, dtype=float)
     if not show_diagonal:
         np.fill_diagonal(disp, np.nan)
@@ -824,6 +827,15 @@ def draw_heatmap(fig, ax, mat, cmap, fmt, title, n_clusters, cluster_labels,
     ax.set_yticks(range(n_clusters))
     ax.set_xticklabels(cluster_labels, fontsize=6, rotation=90)
     ax.set_yticklabels(cluster_labels, fontsize=6)
+    if label_colors is not None:
+        for ticklabels in (ax.get_xticklabels(), ax.get_yticklabels()):
+            for i, ticklabel in enumerate(ticklabels):
+                r, g, b = to_rgb(label_colors[i])
+                lum = 0.299 * r + 0.587 * g + 0.114 * b
+                ticklabel.set_color('black' if lum > 0.5 else 'white')
+                ticklabel.set_bbox(dict(facecolor=label_colors[i],
+                                        edgecolor='none',
+                                        boxstyle='round,pad=0.15'))
     finite = disp[np.isfinite(disp)]
     lo = float(finite.min()) if finite.size else 0.0
     hi = float(finite.max()) if finite.size else 1.0
@@ -1078,6 +1090,36 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
     return tip_y
 
 
+def cluster_display_labels(clusters, labels, names, category_tracks):
+    """ Return {cluster_id: label}. When a `species` annotation track is present
+    and > SPECIES_NAME_THRESHOLD of a cluster's samples share one species value,
+    the cluster is named `<species>_C<id>` (e.g. `EFAS_C1`); otherwise `C<id>`.
+    The `_C<id>` keeps every label distinct and aligned with the other panels. """
+    base = {c: 'C{0}'.format(c) for c in clusters}
+    species = next((t for t in (category_tracks or [])
+                    if t['name'].lower() == 'species'), None)
+    if species is None:
+        return base
+    assign = species['assign']
+    members = {c: [] for c in clusters}
+    for i, nm in enumerate(names):
+        members[int(labels[i])].append(nm)
+    out = {}
+    for c in clusters:
+        counts = {}
+        for nm in members[c]:
+            value = assign.get(nm)
+            if value is not None:
+                counts[value] = counts.get(value, 0) + 1
+        if members[c] and counts:
+            top, top_n = max(counts.items(), key=lambda kv: kv[1])
+            if top_n / len(members[c]) > SPECIES_NAME_THRESHOLD:
+                out[c] = '{0}_C{1}'.format(top, c)
+                continue
+        out[c] = base[c]
+    return out
+
+
 def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                         data, method, ordination, tree_mode, colors_by_k,
                         category_tracks, loci_presence):
@@ -1104,7 +1146,9 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
     n_clusters = stats['n_clusters']
     sel_cid_color = colors_by_k[selected['K']]
     sample_cluster = {nm: int(labels[name_idx[nm]]) for nm in names}
-    cluster_labels = ['C{0}'.format(c) for c in clusters]
+    cname = cluster_display_labels(clusters, labels, names, category_tracks)
+    cluster_labels = [cname[c] for c in clusters]
+    cluster_colors = [sel_cid_color[c] for c in clusters]
 
     ks = [r['K'] for r in display]
     sils = [r['silhouette'] for r in display]
@@ -1122,7 +1166,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                 pts = coords[labels == c]
                 col = sel_cid_color[c]
                 ax.scatter(pts[:, ix], pts[:, iy], s=14, color=col,
-                           edgecolor='none', label='C{0}'.format(c))
+                           edgecolor='none', label=cname[c])
                 if pts.shape[0] >= 3:
                     try:
                         hull = ConvexHull(pts[:, [ix, iy]])
@@ -1180,7 +1224,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
             ax.barh(yr, vals, height=1.0, color=sel_cid_color[c],
                     edgecolor='none')
             yticks.append(ypos + len(vals) / 2.0)
-            yticklabels.append('C{0}'.format(c))
+            yticklabels.append(cname[c])
             ypos += len(vals) + cluster_gap
         mean_s = float(np.mean(sample_sil))
         ax.axvline(mean_s, color='red', ls='--', lw=1,
@@ -1212,7 +1256,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
             bottom = np.zeros(len(values))
             for ci, c in enumerate(clusters):
                 ax.bar(x, counts[ci], bottom=bottom, color=sel_cid_color[c],
-                       edgecolor='white', linewidth=0.2, label='C{0}'.format(c))
+                       edgecolor='white', linewidth=0.2, label=cname[c])
                 bottom += counts[ci]
             ax.set_xticks(x)
             ax.set_xticklabels(values, fontsize=6, rotation=90)
@@ -1235,17 +1279,18 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
 
     def draw_shared(ax):
         draw_heatmap(fig, ax, shared, 'YlOrRd', '{0:d}', shared_title,
-                     n_clusters, cluster_labels, show_diagonal=True)
+                     n_clusters, cluster_labels, label_colors=cluster_colors,
+                     show_diagonal=True)
 
     def draw_priv_pair(ax):
         draw_heatmap(fig, ax, priv_pair, 'YlOrRd', '{0:d}',
                      'Private alleles (pairwise, no singletons)',
-                     n_clusters, cluster_labels)
+                     n_clusters, cluster_labels, label_colors=cluster_colors)
 
     def draw_fixed(ax):
         draw_heatmap(fig, ax, fixed_diff, 'YlOrRd', '{0:d}',
                      'Alternatively fixed SNPs (>=2 samples/cluster)',
-                     n_clusters, cluster_labels)
+                     n_clusters, cluster_labels, label_colors=cluster_colors)
 
     # --- assemble rows (each row is a list of panel callables) ---------------
     rows = [[draw_circular, make_ordination(0, 1), make_ordination(1, 2)],

@@ -142,8 +142,8 @@ genetic groups, how many of them are there, and how differentiated are they". *[
                               [--min-cluster-size N] [--k K]
                               [--tree {upgma,nj}] [--ordination {pca,pcoa}]
                               [--loci loci_file] [--pops-from-sample-id]
-                              [--fields names] [--pdf-output pdf_file]
-                              [--no-pdf]
+                              [--fields names] [--split-output K]
+                              [--pdf-output pdf_file] [--no-pdf]
 
 	Clones are non-independent samples that distort per-group allele frequencies and
 	therefore bias essentially every population-genetic measure (Fst, private and
@@ -178,13 +178,19 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	curve and per-sample silhouette; (row 3, with tracks) one stacked bar per field
 	showing how the clusters distribute across that field's categories; (row 4)
 	white-yellow-red differentiation heatmaps - shared loci (or shared genotyped
-	SNPs without a `.loci` file), pairwise private alleles excluding singletons, and
-	fixed differences (all counted over sites with >= 2 samples per cluster).
+	SNPs without a `.loci` file; diagonal = each cluster's own total), pairwise
+	private alleles excluding singletons, and alternatively fixed SNPs (all counted
+	over sites with >= 2 samples per cluster).
 	
 	The UPGMA linkage is the single source of truth: it is drawn as the tree AND
 	cut to give every K-assignment, so the tree and the columns are always coherent.
 	With `--tree nj` a neighbour-joining tree (as in `vcf_clone_detect.py`) is drawn
 	for display instead, but the cluster assignments still come from UPGMA.
+	
+	Every PDF page is labelled with the VCF basename (top-left). With `--split-output
+	K` the dataset is split into the K clusters at that K and the whole analysis is
+	re-run separately for each (writing `_C<n>` csv/pdf outputs), to explore the
+	sub-structure within each cluster.
 	
 	Example:
 	  python3 vcf_cluster_explore.py --vcf vcf_file.vcf --pop pop_file.txt       --output clusters.csv
@@ -234,6 +240,10 @@ genetic groups, how many of them are there, and how differentiated are they". *[
 	  --fields names        comma-separated names for the annotation tracks in
 	                        order (e.g. "location,depth"); overrides the default
 	                        track titles
+	  --split-output K      after the full analysis, split the dataset into the K
+	                        clusters at this K and re-run the whole analysis
+	                        separately for each (writing `_C<n>` csv/pdf outputs
+	                        alongside the main ones; needs K>=2)
 	  --pdf-output pdf_file
 	                        filename for the PDF report
 	  --no-pdf              do not generate the PDF report (text only)

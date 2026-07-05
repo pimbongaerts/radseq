@@ -47,6 +47,11 @@ cut to give every K-assignment, so the tree and the columns are always coherent.
 With `--tree nj` a neighbour-joining tree (as in `vcf_clone_detect.py`) is drawn
 for display instead, but the cluster assignments still come from UPGMA.
 
+Every PDF page is labelled with the VCF basename (top-left). With `--split-output
+K` the dataset is split into the K clusters at that K and the whole analysis is
+re-run separately for each (writing `_C<n>` csv/pdf outputs), to explore the
+sub-structure within each cluster.
+
 Example:
   python3 vcf_cluster_explore.py --vcf vcf_file.vcf --pop pop_file.txt \
       --output clusters.csv
@@ -953,7 +958,7 @@ def draw_category_track(ax, track, tip_y, ylim, dot_size, color):
 # --------------------------------------------------------------------------- #
 def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
                     perc_genotyped, method, tree_mode, colors_by_k, sel_color,
-                    category_tracks):
+                    category_tracks, dataset_label=''):
     """ PAGE 1 - a full-page-width tree with readable tip labels, followed (left
     to right) by the per-K cluster-assignment columns, a %genotyped bar and one
     dot-strip panel per metadata track (population / lineage or the sample-id
@@ -1085,6 +1090,9 @@ def write_tree_page(pdf, dist, linkage_matrix, names, display, selected,
         draw_category_track(ax_t, track, tip_y, ylim, dot_size, color)
         x_track += tw
 
+    if dataset_label:
+        fig.text(left_margin / fig_w, (fig_h - 0.30) / fig_h, dataset_label,
+                 ha='left', va='center', fontsize=7, color='0.4')
     pdf.savefig(fig)
     plt.close(fig)
     return tip_y
@@ -1122,7 +1130,7 @@ def cluster_display_labels(clusters, labels, names, category_tracks):
 
 def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                         data, method, ordination, tree_mode, colors_by_k,
-                        category_tracks, loci_presence):
+                        category_tracks, loci_presence, dataset_label=''):
     """ PAGE 2 (fixed A4) - analysis panels in a row-based grid:
       ROW 1: fanned circular tree | ordination axes 1v2 | ordination axes 2v3
              (all coloured by cluster, so differentiated groups pop out).
@@ -1314,6 +1322,9 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
         ytop = margin + ri * (row_h + row_gap)
         for ci, draw in enumerate(row):
             draw(ax_in(margin + ci * (cw + col_gap), ytop, cw, row_h))
+    if dataset_label:
+        fig.text(margin / fig_w, (fig_h - 0.28) / fig_h, dataset_label,
+                 ha='left', va='center', fontsize=7, color='0.4')
     pdf.savefig(fig)
     plt.close(fig)
 
@@ -1321,7 +1332,7 @@ def write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
 def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
                      selected, perc_genotyped, data, method, tree_mode,
                      ordination, pdf_filename, category_tracks=None,
-                     loci_presence=None):
+                     loci_presence=None, dataset_label=''):
     """ Two-page PDF. PAGE 1: a full-page-width tree with readable tip labels,
     the per-K cluster-assignment columns (selected K boxed), a %genotyped bar and
     one dot-strip panel per metadata track (population / lineage from a popfile,
@@ -1349,13 +1360,14 @@ def write_pdf_report(sim, dist, linkage_matrix, names, records, col_max,
     with PdfPages(pdf_filename) as pdf:
         tip_y = write_tree_page(pdf, dist, linkage_matrix, names, display,
                                 selected, perc_genotyped, method, tree_mode,
-                                colors_by_k, sel_color, category_tracks)
+                                colors_by_k, sel_color, category_tracks,
+                                dataset_label)
         if tip_y is None:
             plt.close('all')
             return
         write_analysis_page(pdf, dist, linkage_matrix, names, display, selected,
                             data, method, ordination, tree_mode, colors_by_k,
-                            category_tracks, loci_presence)
+                            category_tracks, loci_presence, dataset_label)
     sys.stderr.write('PDF report written to {0}\n'.format(pdf_filename))
 
 
@@ -1387,30 +1399,17 @@ def cluster_size_map(labels, clusters):
 # --------------------------------------------------------------------------- #
 #  Main
 # --------------------------------------------------------------------------- #
-def main(vcf_filename, pop_filename, output_filename, method, max_k,
-         min_cluster_size, force_k, tree_mode, ordination,
-         clone_list, clone_threshold, auto_clone, loci_filename,
-         pops_from_sample_id, field_names, make_pdf, pdf_output):
-
-    print('###1 - Loading VCF (method: {0})'.format(method))
-    if not vcf_filename:
-        sys.exit('Error: please provide a vcf_file (--vcf).')
-    need_ad = (method == 'single-read')
-    data = vcf_clone_detect.load_vcf_arrays(vcf_filename, need_ad=need_ad)
-    if data['multiallelic']:
-        sys.stderr.write('Warning: multiallelic sites present; allele counts '
-                         'use alt-dosage only.\n')
-    n_total = len(data['names'])
-    data, removed, info = clone_correct(data, method, clone_list,
-                                        clone_threshold, auto_clone)
+def run_analysis(data, method, max_k, min_cluster_size, force_k, tree_mode,
+                 ordination, loci_filename, pop_filename,
+                 pops_from_sample_id, field_names, make_pdf,
+                 csv_filename, pdf_filename, dataset_label, unit='samples'):
+    """ Run the full cluster-exploration pipeline on one dataset: distance ->
+    UPGMA linkage -> K evaluation -> cluster membership -> differentiation
+    summary -> optional `.loci` sharing -> CSV + two-page PDF. Returns the per-K
+    `records`. `dataset_label` is stamped on each PDF page; `unit` only labels the
+    count in the ###2 line (`samples` for a subset, `genets` after clone-
+    correction). """
     n_units = len(data['names'])
-    unit = 'genets' if removed else 'samples'
-    print('{0} samples -> {1} {2} ({3} removed); {4}'.format(
-        n_total, n_units, unit, len(removed), info))
-    if n_units < 3:
-        sys.exit('Error: need at least 3 {0} for cluster exploration '
-                 '(have {1}).'.format(unit, n_units))
-
     print('\n###2 - Distance matrix and UPGMA linkage')
     sim, dist, n_no_overlap = compute_distance_matrix(data, method)
     if n_no_overlap:
@@ -1521,8 +1520,6 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
                 print('  C{0}: {1} private loci'.format(c, int(lpriv[ci])))
 
     print('\n###6 - Output files')
-    csv_filename, pdf_filename = derive_outputs(output_filename, vcf_filename,
-                                                pdf_output)
     write_assignment_csv(data['names'],
                          [r for r in records if r['K'] <= display_max],
                          csv_filename)
@@ -1542,9 +1539,78 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
                              display_max, selected, perc_genotyped, data,
                              method, tree_mode, ordination, pdf_filename,
                              category_tracks=category_tracks,
-                             loci_presence=loci_presence)
+                             loci_presence=loci_presence,
+                             dataset_label=dataset_label)
         except Exception as error:
             sys.stderr.write('Warning: PDF report failed ({0})\n'.format(error))
+    return records
+
+
+def main(vcf_filename, pop_filename, output_filename, method, max_k,
+         min_cluster_size, force_k, tree_mode, ordination,
+         clone_list, clone_threshold, auto_clone, loci_filename,
+         pops_from_sample_id, field_names, make_pdf, pdf_output,
+         split_output=None):
+
+    print('###1 - Loading VCF (method: {0})'.format(method))
+    if not vcf_filename:
+        sys.exit('Error: please provide a vcf_file (--vcf).')
+    need_ad = (method == 'single-read')
+    data = vcf_clone_detect.load_vcf_arrays(vcf_filename, need_ad=need_ad)
+    if data['multiallelic']:
+        sys.stderr.write('Warning: multiallelic sites present; allele counts '
+                         'use alt-dosage only.\n')
+    n_total = len(data['names'])
+    data, removed, info = clone_correct(data, method, clone_list,
+                                        clone_threshold, auto_clone)
+    n_units = len(data['names'])
+    unit = 'genets' if removed else 'samples'
+    print('{0} samples -> {1} {2} ({3} removed); {4}'.format(
+        n_total, n_units, unit, len(removed), info))
+    if n_units < 3:
+        sys.exit('Error: need at least 3 {0} for cluster exploration '
+                 '(have {1}).'.format(unit, n_units))
+
+    dataset_label = os.path.splitext(os.path.basename(vcf_filename))[0]
+    csv_filename, pdf_filename = derive_outputs(output_filename, vcf_filename,
+                                                pdf_output)
+    records = run_analysis(data, method, max_k, min_cluster_size, force_k,
+                           tree_mode, ordination, loci_filename, pop_filename,
+                           pops_from_sample_id, field_names, make_pdf,
+                           csv_filename, pdf_filename, dataset_label, unit=unit)
+
+    if split_output is None:
+        return
+    if split_output < 2:
+        sys.stderr.write('Warning: --split-output needs K>=2; skipping split.\n')
+        return
+    if split_output not in [r['K'] for r in records]:
+        sys.stderr.write('Warning: --split-output K={0} not in the evaluated '
+                         'range; skipping split.\n'.format(split_output))
+        return
+
+    print('\n### Splitting into {0} clusters (K={0}) and exploring each '
+          'separately'.format(split_output))
+    split_labels = select_record(records, split_output)['labels']
+    csv_root, csv_ext = os.path.splitext(csv_filename)
+    pdf_root, pdf_ext = os.path.splitext(pdf_filename)
+    for cluster in sorted(set(int(x) for x in split_labels)):
+        keep_idx = [i for i in range(len(split_labels))
+                    if int(split_labels[i]) == cluster]
+        if len(keep_idx) < 3:
+            print('\nSkipping split cluster C{0}: only {1} sample(s) '
+                  '(need >=3).'.format(cluster, len(keep_idx)))
+            continue
+        sub = subset_data(data, keep_idx)
+        sub_csv = '{0}_C{1}{2}'.format(csv_root, cluster, csv_ext)
+        sub_pdf = '{0}_C{1}{2}'.format(pdf_root, cluster, pdf_ext)
+        print('\n===== Split cluster C{0} ({1} samples) ====='.format(
+            cluster, len(keep_idx)))
+        run_analysis(sub, method, max_k, min_cluster_size, None, tree_mode,
+                     ordination, loci_filename, pop_filename,
+                     pops_from_sample_id, field_names, make_pdf,
+                     sub_csv, sub_pdf,
+                     '{0}_C{1}'.format(dataset_label, cluster), unit='samples')
 
 
 if __name__ == '__main__':
@@ -1615,6 +1681,13 @@ if __name__ == '__main__':
                         help='comma-separated names for the annotation tracks '
                              'in order (e.g. "location,depth"); overrides the '
                              'default track titles')
+    parser.add_argument('--split-output', dest='split_output', type=int,
+                        default=None, metavar='K',
+                        help='after the full analysis, split the dataset into '
+                             'the K clusters at this K and re-run the whole '
+                             'analysis separately for each (writing `_C<n>` '
+                             'csv/pdf outputs alongside the main ones; needs '
+                             'K>=2)')
     parser.add_argument('--pdf-output', dest='pdf_output', default=None,
                         metavar='pdf_file', help='filename for the PDF report')
     parser.add_argument('--no-pdf', dest='no_pdf', action='store_true',
@@ -1627,4 +1700,4 @@ if __name__ == '__main__':
          args.force_k, args.tree_mode, args.ordination, args.clone_list,
          args.clone_threshold, args.auto_clone, args.loci_filename,
          args.pops_from_sample_id, field_names, make_pdf=not args.no_pdf,
-         pdf_output=args.pdf_output)
+         pdf_output=args.pdf_output, split_output=args.split_output)

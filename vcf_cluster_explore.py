@@ -1606,7 +1606,7 @@ def main(vcf_filename, pop_filename, output_filename, method, max_k,
         sub_pdf = '{0}_C{1}{2}'.format(pdf_root, cluster, pdf_ext)
         print('\n===== Split cluster C{0} ({1} samples) ====='.format(
             cluster, len(keep_idx)))
-        run_analysis(sub, method, max_k, min_cluster_size, None, tree_mode,
+        run_analysis(sub, method, max_k, min_cluster_size, force_k, tree_mode,
                      ordination, loci_filename, pop_filename,
                      pops_from_sample_id, field_names, make_pdf,
                      sub_csv, sub_pdf,
@@ -1655,7 +1655,8 @@ if __name__ == '__main__':
                                  DEF_MIN_CLUSTER_SIZE))
     parser.add_argument('--k', dest='force_k', type=int, default=None,
                         metavar='K', help='force which K drives the '
-                        'differentiation panels (default: best-supported K)')
+                        'differentiation panels, for the main run and each '
+                        '--split-output subset (default: best-supported K)')
     parser.add_argument('--tree', dest='tree_mode', default='upgma',
                         choices=('upgma', 'nj'),
                         help='tree to draw (default: upgma; nj is display only, '

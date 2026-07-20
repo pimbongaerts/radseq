@@ -47,7 +47,7 @@ def num_in_pop_genotyped(record, indvs):
             count_genotyped += 1
         else:
             sys.exit('Unexpected value: {0}:{1}'.format(indiv, record.CHROM))
-    return int(count_genotyped)
+    return float(count_genotyped / (count_genotyped + count_missing))
 
 
 def prop_of_overall_genotyped(record, pops_indivs):
